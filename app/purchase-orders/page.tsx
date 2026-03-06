@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/store/app-store";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatCurrency, formatPct } from "@/lib/costs";
 import { formatCBM } from "@/lib/volumetrics";
-import type { PurchaseOrder, POLineItem } from "@/types/purchase-order";
+import type { PurchaseOrder, POLineItem, POComment } from "@/types/purchase-order";
 import { nanoid } from "@/lib/nanoid";
-import { ShoppingCart, Sparkles, Download, ChevronDown, ChevronRight, FileText, Split } from "lucide-react";
+import { ShoppingCart, Sparkles, Download, ChevronDown, ChevronRight, FileText, Split, MessageSquare, Send } from "lucide-react";
 import { generatePOPdf } from "@/lib/pdf-export";
+import { exportToXlsx, poToXlsxRows } from "@/lib/export/xlsx";
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 const STATUS_LABELS: Record<PurchaseOrder["status"], string> = {
   draft: "Draft",
@@ -42,6 +45,10 @@ export default function PurchaseOrdersPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [comments, setComments] = useState<POComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+  const { data: session } = useSession();
 
   const forecastOptions = [
     { value: "", label: "— Select forecast run —" },
@@ -85,7 +92,7 @@ export default function PurchaseOrdersPage() {
         setSelectedPOId(po.id);
       }
     } catch {
-      alert("Failed to generate purchase order");
+      toast.error("Failed to generate purchase order");
     }
 
     setGenerating(false);
@@ -218,7 +225,7 @@ ${includedLines
       grouped.get(key)!.push(line);
     }
     if (grouped.size <= 1) {
-      alert("All included lines share the same supplier — nothing to split.");
+      toast.error("All included lines share the same supplier — nothing to split.");
       return;
     }
     let rank = 1;
@@ -245,7 +252,43 @@ ${includedLines
       dispatch({ type: "UPSERT_PURCHASE_ORDER", order: newPO });
       rank++;
     }
-    alert(`Split into ${grouped.size} supplier POs.`);
+    toast.success(`Split into ${grouped.size} supplier POs.`);
+  }
+
+  // Load comments when selected PO changes
+  useEffect(() => {
+    if (!selectedPO) return;
+    fetch(`/api/po-comments?poId=${selectedPO.id}`)
+      .then((r) => r.json())
+      .then((data: POComment[]) => setComments(data))
+      .catch(() => {});
+  }, [selectedPO?.id]);
+
+  async function submitComment() {
+    if (!selectedPO || !commentText.trim()) return;
+    setCommentLoading(true);
+    try {
+      const res = await fetch("/api/po-comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purchaseOrderId: selectedPO.id, content: commentText }),
+      });
+      if (res.ok) {
+        const newComment = await res.json() as POComment;
+        setComments((prev) => [...prev, newComment]);
+        setCommentText("");
+      }
+    } catch {
+      toast.error("Failed to post comment");
+    } finally {
+      setCommentLoading(false);
+    }
+  }
+
+  async function exportXlsx() {
+    if (!selectedPO) return;
+    await exportToXlsx([{ name: "PO Lines", data: poToXlsxRows(selectedPO) }], selectedPO.reference);
+    toast.success(`${selectedPO.reference}.xlsx downloaded`);
   }
 
   function exportCSV() {
@@ -386,6 +429,9 @@ ${includedLines
                 <Button size="sm" variant="ghost" onClick={exportPDF} loading={pdfLoading}>
                   <FileText className="h-3.5 w-3.5" /> PDF
                 </Button>
+                <Button size="sm" variant="ghost" onClick={exportXlsx}>
+                  <Download className="h-3.5 w-3.5" /> XLSX
+                </Button>
                 <Button size="sm" variant="ghost" onClick={exportCSV}>
                   <Download className="h-3.5 w-3.5" /> CSV
                 </Button>
@@ -518,6 +564,47 @@ ${includedLines
               </table>
             </div>
           </Card>
+        {/* Comments panel */}
+        {selectedPO && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <MessageSquare className="mr-1 inline h-4 w-4" />
+                Comments ({comments.length})
+              </CardTitle>
+            </CardHeader>
+            <div className="mb-4 space-y-3">
+              {comments.length === 0 && (
+                <p className="text-xs text-brand-dark-gray">No comments yet. Leave a note for your team.</p>
+              )}
+              {comments.map((c) => (
+                <div key={c.id} className="rounded-sm bg-brand-gray px-3 py-2">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-xs font-600 text-brand-black">{c.userName ?? "User"}</span>
+                    <span className="font-mono text-[10px] text-brand-dark-gray">
+                      {new Date(c.createdAt).toLocaleString("en-AU")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-brand-black">{c.content}</p>
+                </div>
+              ))}
+            </div>
+            {session?.user.role !== "VIEWER" && (
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 rounded-none border border-gray-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+                  placeholder="Add a comment…"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submitComment(); } }}
+                />
+                <Button onClick={submitComment} loading={commentLoading} disabled={!commentText.trim()}>
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
         </>
       )}
 

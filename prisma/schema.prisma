@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  BUYER
+  VIEWER
+}
+
+model User {
+  id            String      @id @default(cuid())
+  name          String?
+  email         String      @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role        @default(BUYER)
+  accounts      Account[]
+  sessions      Session[]
+  poComments    POComment[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Business Entities ───────────────────────────────────────────────────────
+
+model Product {
+  id                 String        @id @default(cuid())
+  sku                String
+  name               String
+  category           String
+  subCategory        String?
+  supplierId         String?
+  rrpCents           Int
+  costCents          Int
+  landedCostCents    Int
+  landedCostFactor   Float
+  /// JSON: BoxDimensions { lengthMm, widthMm, heightMm, weightGrams }
+  boxDimensions      Json?
+  unitsPerCarton     Int
+  /// JSON: SizeCurve { label, sizes: SizeRun[] }
+  sizeCurve          Json?
+  isActive           Boolean       @default(true)
+  isNewToMarket      Boolean       @default(false)
+  analogousProductId String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  salesPeriods       SalesPeriod[]
+  supplier           Supplier?     @relation(fields: [supplierId], references: [id])
+
+  @@index([sku])
+  @@index([category])
+  @@index([supplierId])
+}
+
+model SalesPeriod {
+  id            String   @id @default(cuid())
+  productId     String
+  periodStart   String
+  periodEnd     String
+  totalDays     Int
+  inStockDays   Int
+  unitsReceived Int
+  unitsSold     Int
+  openingStock  Int
+  closingStock  Int
+  hadStockout   Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([periodStart])
+}
+
+model ForecastRun {
+  id           String   @id @default(cuid())
+  name         String
+  windowStart  String
+  windowEnd    String
+  orderCycleId String?
+  /// JSON: ProductForecast[]
+  products     Json
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id                    String      @id @default(cuid())
+  reference             String
+  orderCycleId          String
+  supplierId            String?
+  supplierName          String?
+  status                String      @default("draft")
+  /// JSON: POLineItem[]
+  lines                 Json
+  fullValueCents        Int
+  optimisedValueCents   Int
+  budgetCents           Int
+  totalRevenueCents     Int
+  totalGrossProfitCents Int
+  overallGrossMarginPct Float
+  totalVolumeCBM        Float?
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  comments              POComment[]
+
+  @@index([status])
+  @@index([orderCycleId])
+}
+
+model POComment {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  userId          String
+  content         String
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([purchaseOrderId])
+}
+
+model OrderCycle {
+  id                   String   @id @default(cuid())
+  name                 String
+  type                 String
+  orderDate            String
+  expectedDeliveryDate String
+  seasonStart          String
+  seasonEnd            String
+  budgetCents          Int
+  maxVolumeCBM         Float?
+  isActive             Boolean  @default(true)
+}
+
+model Supplier {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  name              String
+  country           String
+  currency          String
+  leadTimeDays      Int
+  leadTimeAlertDays Int
+  paymentTerms      String?
+  contactName       String?
+  contactEmail      String?
+  notes             String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  products          Product[]
+}
+
+model AppSettings {
+  id                        String   @id @default("singleton")
+  businessName              String   @default("Core Action Sports")
+  currency                  String   @default("AUD")
+  defaultLandedCostFactor   Float    @default(1.15)
+  targetGrossMarginPct      Float    @default(50)
+  defaultForecastWindowDays Int      @default(90)
+  /// JSON: OrderCycle[]
+  orderCycles               Json     @default("[]")
+  /// JSON: CategorySeasonalConfig[]
+  seasonalConfigs           Json     @default("[]")
+  updatedAt                 DateTime @updatedAt
+}

@@ -1,34 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { buildPOLines, applyBudgetOptimisation, assemblePurchaseOrder } from "@/lib/purchase-order";
+import { unauthorized, zodError, serverError, ok } from "@/lib/api-response";
 import type { ProductForecast } from "@/types/forecast";
 import type { Product } from "@/types/product";
 import type { OrderCycle } from "@/types/purchase-order";
 
-interface PORequestBody {
-  forecasts: ProductForecast[];
-  products: Product[];
-  cycle: OrderCycle;
-  supplierName?: string;
-  notes?: string;
-}
+const schema = z.object({
+  forecasts: z.array(z.object({}).passthrough()),
+  products: z.array(z.object({}).passthrough()),
+  cycle: z.object({}).passthrough(),
+  supplierName: z.string().optional(),
+  notes: z.string().optional(),
+});
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return unauthorized();
+
+  const parsed = schema.safeParse(await req.json());
+  if (!parsed.success) return zodError(parsed.error);
+
   try {
-    const body: PORequestBody = await req.json();
-    const { forecasts, products, cycle, supplierName, notes } = body;
+    const { forecasts, products, cycle, supplierName, notes } = parsed.data;
 
-    // Build raw lines from forecasts
-    let lines = buildPOLines({ forecasts, products });
+    let lines = buildPOLines({
+      forecasts: forecasts as unknown as ProductForecast[],
+      products: products as unknown as Product[],
+    });
 
-    // Apply budget optimisation
-    lines = applyBudgetOptimisation(lines, cycle.budgetCents);
+    lines = applyBudgetOptimisation(lines, (cycle as unknown as OrderCycle).budgetCents);
 
-    // Assemble the full PO
-    const po = assemblePurchaseOrder({ lines, cycle, supplierName, notes });
+    const po = assemblePurchaseOrder({
+      lines,
+      cycle: cycle as unknown as OrderCycle,
+      supplierName,
+      notes,
+    });
 
-    return NextResponse.json(po);
+    return ok(po);
   } catch (err) {
-    console.error("[/api/purchase-order]", err);
-    return NextResponse.json({ error: "Purchase order generation failed" }, { status: 500 });
+    return serverError(err);
   }
 }

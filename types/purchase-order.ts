@@ -64,3 +64,12 @@ export interface PurchaseOrder {
   totalVolumeCBM?: number;
   notes?: string;
 }
+
+export interface POComment {
+  id: string;
+  purchaseOrderId: string;
+  userId: string;
+  userName: string | null;
+  content: string;
+  createdAt: string;
+}

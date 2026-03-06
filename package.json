@@ -1,6 +1,6 @@
 {
   "name": "core-action-ml",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,13 @@
     "format:check": "prettier --check .",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -28,7 +34,15 @@
     "lucide-react": "^0.475.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
-    "papaparse": "^5.4.1"
+    "papaparse": "^5.4.1",
+    "next-auth": "^4.24.11",
+    "@next-auth/prisma-adapter": "^1.0.7",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "sonner": "^1.7.4",
+    "react-error-boundary": "^4.1.2",
+    "xlsx": "^0.18.5",
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -48,6 +62,11 @@
     "typescript": "^5",
     "vitest": "^3.0.8",
     "@types/papaparse": "^5.3.15",
-    "@types/jspdf": "^2.0.0"
+    "@types/jspdf": "^2.0.0",
+    "prisma": "^5.22.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/nodemailer": "^6.4.17",
+    "@playwright/test": "^1.49.1",
+    "tsx": "^4.19.2"
   }
 }
