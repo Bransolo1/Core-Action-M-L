@@ -1,0 +1,11 @@
+SKU,Product Name,Category,RRP,Cost Price,Landed Cost Factor,Units Per Carton,Min Order Qty,Lead Time Days,Active,New To Market
+DECK-8-PRO,"Pro Street Deck 8.0",Skateboarding,89.95,35.00,1.15,10,1,0,Yes,No
+DECK-8-TEAM,"Team Deck 8.25",Skateboarding,74.95,28.00,1.15,10,1,0,Yes,No
+WHEEL-52-99A,"Street Wheels 52mm 99a (4pk)",Skateboarding,49.95,18.00,1.15,24,1,0,Yes,No
+TRUCK-5.25,"Hollow Trucks 5.25 (pair)",Skateboarding,79.95,32.00,1.15,6,1,0,Yes,No
+TEE-LOGO-M,"Logo Tee — Black",Apparel,44.95,12.00,1.20,20,5,14,Yes,No
+HOOD-CORE-M,"Core Hoodie — Grey",Apparel,89.95,28.00,1.20,10,5,14,Yes,No
+SHOE-VULC-9,"Vulc Pro Shoe",Footwear,119.95,42.00,1.25,8,1,21,Yes,Yes
+GRIP-PRO,"Pro Grip Tape (sheet)",Skateboarding,12.95,3.50,1.10,50,10,0,Yes,No
+BEAR-ABEC7,"ABEC 7 Bearings (8pk)",Skateboarding,34.95,10.00,1.15,20,1,0,Yes,No
+TOOL-SKATE,"Skate Tool — All-in-one",Accessories,24.95,6.00,1.10,30,5,0,Yes,No

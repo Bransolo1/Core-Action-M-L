@@ -1,0 +1,11 @@
+SKU,Period Start,Period End,Units Received,Units Sold,In Stock Days,Opening Stock,Closing Stock,Had Stockout,Notes
+DECK-8-PRO,2024-07-01,2024-09-30,100,100,35,100,0,Yes,"Sold out in 35 days — strong summer demand"
+DECK-8-PRO,2024-10-01,2024-12-31,150,140,80,150,10,Yes,"Brief stockout in December"
+DECK-8-TEAM,2024-07-01,2024-09-30,80,65,92,80,15,No,"Steady seller"
+DECK-8-TEAM,2024-10-01,2024-12-31,60,58,92,75,17,No,""
+WHEEL-52-99A,2024-07-01,2024-09-30,200,200,60,200,0,Yes,"High demand — out of stock 32 days"
+WHEEL-52-99A,2024-10-01,2024-12-31,300,280,92,300,20,No,"Full stock, strong Christmas sales"
+TRUCK-5.25,2024-07-01,2024-12-31,50,42,184,50,8,No,"6-month period, steady velocity"
+TEE-LOGO-M,2024-10-01,2024-12-31,100,95,80,100,5,Yes,"Ran low in November"
+GRIP-PRO,2024-07-01,2024-12-31,500,480,184,500,20,No,"Fast mover, full stock all period"
+BEAR-ABEC7,2024-07-01,2024-12-31,120,110,184,120,10,No,""
