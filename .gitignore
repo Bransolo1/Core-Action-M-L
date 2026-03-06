@@ -32,3 +32,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# team-collab server data (contains live DB — do not commit)
+/data/app-data.json

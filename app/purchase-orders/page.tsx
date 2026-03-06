@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { formatCurrency, formatPct } from "@/lib/costs";
 import { formatCBM } from "@/lib/volumetrics";
 import type { PurchaseOrder, POLineItem } from "@/types/purchase-order";
 import { nanoid } from "@/lib/nanoid";
-import { ShoppingCart, Sparkles, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { ShoppingCart, Sparkles, Download, ChevronDown, ChevronRight, FileText, Split } from "lucide-react";
+import { generatePOPdf } from "@/lib/pdf-export";
 
 const STATUS_LABELS: Record<PurchaseOrder["status"], string> = {
   draft: "Draft",
@@ -29,7 +30,7 @@ const STATUS_VARIANTS: Record<PurchaseOrder["status"], "default" | "warning" | "
 
 export default function PurchaseOrdersPage() {
   const { state, dispatch } = useAppStore();
-  const { forecastRuns, orderCycles, purchaseOrders, products } = state;
+  const { forecastRuns, orderCycles, purchaseOrders, products, suppliers } = state;
 
   const [selectedForecastId, setSelectedForecastId] = useState<string>("");
   const [selectedCycleId, setSelectedCycleId] = useState<string>("");
@@ -40,6 +41,7 @@ export default function PurchaseOrdersPage() {
   const [expandedLines, setExpandedLines] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const forecastOptions = [
     { value: "", label: "— Select forecast run —" },
@@ -195,6 +197,57 @@ ${includedLines
     });
   }
 
+  async function exportPDF() {
+    if (!selectedPO) return;
+    setPdfLoading(true);
+    try {
+      const cycle = orderCycles.find((c) => c.id === selectedPO.orderCycleId);
+      await generatePOPdf(selectedPO, cycle);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  /** Split a combined PO into per-supplier POs and save all of them */
+  function splitBySupplier() {
+    if (!selectedPO) return;
+    const grouped = new Map<string, typeof selectedPO.lines>();
+    for (const line of selectedPO.lines.filter((l) => l.isIncluded)) {
+      const key = line.supplierId ?? "unassigned";
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(line);
+    }
+    if (grouped.size <= 1) {
+      alert("All included lines share the same supplier — nothing to split.");
+      return;
+    }
+    let rank = 1;
+    for (const [supplierId, lines] of Array.from(grouped.entries())) {
+      const supplier = suppliers.find((s) => s.id === supplierId);
+      const totalCost = lines.reduce((s: number, l: POLineItem) => s + l.totalLandedCostCents, 0);
+      const totalRev = lines.reduce((s: number, l: POLineItem) => s + l.totalForecastedRevenueCents, 0);
+      const totalGP = lines.reduce((s: number, l: POLineItem) => s + l.grossProfitCents, 0);
+      const newPO: PurchaseOrder = {
+        ...selectedPO,
+        id: nanoid(),
+        reference: `${selectedPO.reference}-${supplier?.code ?? "SUP" + rank}`,
+        supplierId: supplierId === "unassigned" ? undefined : supplierId,
+        supplierName: supplier?.name ?? "Unassigned",
+        lines: lines.map((l: POLineItem, i: number) => ({ ...l, priorityRank: i + 1 })),
+        fullValueCents: totalCost,
+        optimisedValueCents: totalCost,
+        totalRevenueCents: totalRev,
+        totalGrossProfitCents: totalGP,
+        overallGrossMarginPct: totalRev > 0 ? (totalGP / totalRev) * 100 : 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      dispatch({ type: "UPSERT_PURCHASE_ORDER", order: newPO });
+      rank++;
+    }
+    alert(`Split into ${grouped.size} supplier POs.`);
+  }
+
   function exportCSV() {
     if (!selectedPO) return;
     const rows = [
@@ -253,8 +306,12 @@ ${includedLines
             value={budgetOverride}
             onChange={(e) => setBudgetOverride(e.target.value)}
           />
-          <Input
-            label="Supplier Name"
+          <Select
+            label="Supplier (optional)"
+            options={[
+              { value: "", label: "— All suppliers —" },
+              ...suppliers.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` })),
+            ]}
             value={supplierName}
             onChange={(e) => setSupplierName(e.target.value)}
           />
@@ -323,6 +380,12 @@ ${includedLines
                   value={selectedPO.status}
                   onChange={(e) => updateStatus(e.target.value as PurchaseOrder["status"])}
                 />
+                <Button size="sm" variant="ghost" onClick={splitBySupplier}>
+                  <Split className="h-3.5 w-3.5" /> Split by Supplier
+                </Button>
+                <Button size="sm" variant="ghost" onClick={exportPDF} loading={pdfLoading}>
+                  <FileText className="h-3.5 w-3.5" /> PDF
+                </Button>
                 <Button size="sm" variant="ghost" onClick={exportCSV}>
                   <Download className="h-3.5 w-3.5" /> CSV
                 </Button>
@@ -401,7 +464,8 @@ ${includedLines
                     .sort((a, b) => a.priorityRank - b.priorityRank)
                     .filter((l) => expandedLines || l.isIncluded)
                     .map((line) => (
-                      <tr key={line.id} className={`hover:bg-brand-gray/30 ${!line.isIncluded ? "opacity-50" : ""}`}>
+                      <React.Fragment key={line.id}>
+                      <tr className={`hover:bg-brand-gray/30 ${!line.isIncluded ? "opacity-50" : ""}`}>
                         <td className="py-2.5 pr-3 font-mono text-xs">{line.priorityRank}</td>
                         <td className="py-2.5 pr-3 font-mono text-xs">{line.sku}</td>
                         <td className="py-2.5 pr-3 text-sm font-500">{line.productName}</td>
@@ -433,6 +497,22 @@ ${includedLines
                           />
                         </td>
                       </tr>
+                      {/* Size breakdown sub-row */}
+                      {line.sizeBreakdown && line.sizeBreakdown.length > 0 && (
+                        <tr key={`${line.id}-sizes`} className="bg-blue-50/40">
+                          <td colSpan={3} className="pb-1.5 pl-8 pr-3 text-xs text-brand-dark-gray">
+                            <span className="font-600 text-brand-black">Sizes: </span>
+                            {line.sizeBreakdown.map((s) => (
+                              <span key={s.size} className="mr-3 font-mono">
+                                {s.size} <strong>{s.qty}</strong>
+                                <span className="text-brand-dark-gray"> ({s.pct}%)</span>
+                              </span>
+                            ))}
+                          </td>
+                          <td colSpan={11} />
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                 </tbody>
               </table>

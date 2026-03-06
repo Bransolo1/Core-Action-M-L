@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { Select } from "@/components/ui/select";
 import { formatCurrency, formatPct, calculateGrossMarginPct } from "@/lib/costs";
 import { formatDimensions, formatCBM, cartonVolumeCBM } from "@/lib/volumetrics";
 import { nanoid } from "@/lib/nanoid";
-import type { Product, ProductFormData } from "@/types/product";
+import type { Product, ProductFormData, SizeCurve } from "@/types/product";
+import { SIZE_CURVE_CATEGORIES } from "@/types/product";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 
@@ -34,7 +35,7 @@ const CATEGORY_OPTIONS = [
 
 export default function ProductsPage() {
   const { state, dispatch } = useAppStore();
-  const { products } = state;
+  const { products, suppliers } = state;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -81,6 +82,7 @@ export default function ProductsPage() {
         <ProductForm
           editingProduct={editingId ? products.find((p) => p.id === editingId) : undefined}
           products={products}
+          suppliers={suppliers}
           onClose={handleClose}
           onSave={(data) => {
             if (editingId) {
@@ -112,7 +114,7 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  {["SKU", "Name", "Category", "RRP", "Cost", "Landed Cost", "GM%", "Box Dims", "Vol/Carton", "Units/Ctn", "Status", ""].map((h) => (
+                  {["SKU", "Name", "Category", "Supplier", "RRP", "Cost", "Landed Cost", "GM%", "Box Dims", "Vol/Carton", "Units/Ctn", "Sizes", "Status", ""].map((h) => (
                     <th key={h} className="py-2 pr-4 text-xs font-600 uppercase tracking-wider text-brand-dark-gray">
                       {h}
                     </th>
@@ -132,6 +134,9 @@ export default function ProductsPage() {
                         )}
                       </td>
                       <td className="py-2.5 pr-4 text-xs text-brand-dark-gray">{p.category}</td>
+                      <td className="py-2.5 pr-4 text-xs text-brand-dark-gray">
+                        {p.supplierId ? (suppliers.find((s) => s.id === p.supplierId)?.code ?? "—") : "—"}
+                      </td>
                       <td className="py-2.5 pr-4 font-mono text-xs">{formatCurrency(p.rrpCents)}</td>
                       <td className="py-2.5 pr-4 font-mono text-xs">{formatCurrency(p.costCents)}</td>
                       <td className="py-2.5 pr-4 font-mono text-xs">{formatCurrency(p.landedCostCents)}</td>
@@ -145,6 +150,9 @@ export default function ProductsPage() {
                         {p.boxDimensions ? formatCBM(cartonVolumeCBM(p.boxDimensions)) : "—"}
                       </td>
                       <td className="py-2.5 pr-4 font-mono text-xs">{p.unitsPerCarton}</td>
+                      <td className="py-2.5 pr-4 text-xs text-brand-dark-gray">
+                        {p.sizeCurve ? p.sizeCurve.sizes.map((s) => s.size).join("/") : "—"}
+                      </td>
                       <td className="py-2.5 pr-4">
                         <Badge variant={p.isActive ? "success" : "default"}>
                           {p.isActive ? "Active" : "Inactive"}
@@ -179,11 +187,13 @@ export default function ProductsPage() {
 interface ProductFormProps {
   editingProduct?: Product;
   products: Product[];
+  suppliers: import("@/types/supplier").Supplier[];
   onClose: () => void;
   onSave: (data: ProductFormData) => void;
 }
 
-function ProductForm({ editingProduct, products, onClose, onSave }: ProductFormProps) {
+function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: ProductFormProps) {
+  const [sizeCurve, setSizeCurve] = useState<SizeCurve | undefined>(editingProduct?.sizeCurve);
   const defaultValues: ProductFormData = editingProduct
     ? {
         sku: editingProduct.sku,
@@ -233,8 +243,16 @@ function ProductForm({ editingProduct, products, onClose, onSave }: ProductFormP
   }
 
   function onSubmit(data: ProductFormData) {
-    onSave(data);
+    onSave({ ...data, sizeCurve });
   }
+
+  const supplierOptions = [
+    { value: "", label: "— No supplier —" },
+    ...suppliers.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` })),
+  ];
+
+  const watchedCategory = watch("category");
+  const showSizeCurve = SIZE_CURVE_CATEGORIES.has(watchedCategory);
 
   const analogousOptions = [
     { value: "", label: "— None —" },
@@ -263,6 +281,9 @@ function ProductForm({ editingProduct, products, onClose, onSave }: ProductFormP
             error={errors.category?.message}
             {...register("category", { required: "Required" })}
           />
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Select label="Supplier" id="supplierId" options={supplierOptions} {...register("supplierId")} className="lg:col-span-2" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -336,11 +357,122 @@ function ProductForm({ editingProduct, products, onClose, onSave }: ProductFormP
           />
         )}
 
+        {/* Size curve — only for Apparel / Footwear */}
+        {showSizeCurve && (
+          <SizeCurveEditor value={sizeCurve} onChange={setSizeCurve} />
+        )}
+
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit">Save Product</Button>
         </div>
       </form>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Size Curve Editor
+// ---------------------------------------------------------------------------
+
+const DEFAULT_CURVES: SizeCurve[] = [
+  { label: "AU Apparel (XS-3XL)", sizes: [{ size: "XS", pct: 5 }, { size: "S", pct: 15 }, { size: "M", pct: 30 }, { size: "L", pct: 30 }, { size: "XL", pct: 15 }, { size: "2XL", pct: 5 }] },
+  { label: "AU Footwear (6-12)", sizes: [{ size: "6", pct: 5 }, { size: "7", pct: 10 }, { size: "8", pct: 15 }, { size: "9", pct: 20 }, { size: "10", pct: 20 }, { size: "11", pct: 15 }, { size: "12", pct: 10 }, { size: "13", pct: 5 }] },
+  { label: "Youth (S-XL)", sizes: [{ size: "S", pct: 25 }, { size: "M", pct: 35 }, { size: "L", pct: 25 }, { size: "XL", pct: 15 }] },
+];
+
+function SizeCurveEditor({ value, onChange }: { value?: SizeCurve; onChange: (v: SizeCurve | undefined) => void }) {
+  const [custom, setCustom] = useState<SizeCurve>(
+    value ?? { label: "Custom", sizes: [{ size: "", pct: 0 }] }
+  );
+
+  const total = custom.sizes.reduce((s, r) => s + (r.pct || 0), 0);
+
+  function updateSize(i: number, field: "size" | "pct", val: string) {
+    const updated = custom.sizes.map((s, idx) =>
+      idx === i ? { ...s, [field]: field === "pct" ? Number(val) : val } : s
+    );
+    const next = { ...custom, sizes: updated };
+    setCustom(next);
+    onChange(next);
+  }
+
+  function addRow() {
+    const next = { ...custom, sizes: [...custom.sizes, { size: "", pct: 0 }] };
+    setCustom(next);
+    onChange(next);
+  }
+
+  function removeRow(i: number) {
+    const next = { ...custom, sizes: custom.sizes.filter((_, idx) => idx !== i) };
+    setCustom(next);
+    onChange(next.sizes.length ? next : undefined);
+  }
+
+  function applyPreset(curve: SizeCurve) {
+    setCustom(curve);
+    onChange(curve);
+  }
+
+  return (
+    <div className="rounded-sm border border-gray-200 p-4">
+      <p className="mb-2 text-xs font-600 uppercase tracking-wider text-brand-dark-gray">
+        Size Curve Distribution
+      </p>
+      {/* Presets */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {DEFAULT_CURVES.map((curve) => (
+          <button
+            key={curve.label}
+            type="button"
+            onClick={() => applyPreset(curve)}
+            className="rounded-none border border-gray-300 px-3 py-1 text-xs font-500 hover:border-brand-red hover:text-brand-red"
+          >
+            {curve.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onChange(undefined)}
+          className="rounded-none border border-gray-300 px-3 py-1 text-xs font-500 text-brand-dark-gray hover:border-red-400 hover:text-red-600"
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* Size rows */}
+      <div className="space-y-1">
+        {custom.sizes.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className="w-20 rounded-none border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none"
+              placeholder="Size"
+              value={row.size}
+              onChange={(e) => updateSize(i, "size", e.target.value)}
+            />
+            <input
+              className="w-16 rounded-none border border-gray-300 px-2 py-1 font-mono text-xs focus:border-brand-red focus:outline-none"
+              type="number"
+              min={0}
+              max={100}
+              value={row.pct}
+              onChange={(e) => updateSize(i, "pct", e.target.value)}
+            />
+            <span className="text-xs text-brand-dark-gray">%</span>
+            <button type="button" onClick={() => removeRow(i)} className="text-brand-dark-gray hover:text-red-600">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <button type="button" onClick={addRow} className="flex items-center gap-1 text-xs text-brand-dark-gray hover:text-brand-black">
+          <Plus className="h-3 w-3" /> Add size
+        </button>
+        <span className={`font-mono text-xs font-700 ${total === 100 ? "text-green-600" : "text-red-600"}`}>
+          Total: {total}% {total !== 100 && "(must equal 100%)"}
+        </span>
+      </div>
+    </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useReducer } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useReducer, useRef } from "react";
 import type { Product } from "@/types/product";
 import type { SalesPeriod } from "@/types/sales";
 import type { ForecastRun } from "@/types/forecast";
 import type { PurchaseOrder, OrderCycle } from "@/types/purchase-order";
 import type { AppSettings } from "@/types/settings";
+import type { Supplier } from "@/types/supplier";
 import { DEFAULT_SETTINGS } from "@/types/settings";
 
 // ---------------------------------------------------------------------------
@@ -18,15 +19,17 @@ export interface AppState {
   forecastRuns: ForecastRun[];
   purchaseOrders: PurchaseOrder[];
   orderCycles: OrderCycle[];
+  suppliers: Supplier[];
   settings: AppSettings;
 }
 
-const INITIAL_STATE: AppState = {
+export const INITIAL_STATE: AppState = {
   products: [],
   salesPeriods: [],
   forecastRuns: [],
   purchaseOrders: [],
   orderCycles: [],
+  suppliers: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -40,6 +43,7 @@ type Action =
   | { type: "DELETE_PRODUCT"; id: string }
   | { type: "SET_SALES_PERIODS"; periods: SalesPeriod[] }
   | { type: "UPSERT_SALES_PERIOD"; period: SalesPeriod }
+  | { type: "UPSERT_SALES_PERIODS"; periods: SalesPeriod[] }
   | { type: "DELETE_SALES_PERIOD"; id: string }
   | { type: "SET_FORECAST_RUNS"; runs: ForecastRun[] }
   | { type: "UPSERT_FORECAST_RUN"; run: ForecastRun }
@@ -50,78 +54,65 @@ type Action =
   | { type: "SET_ORDER_CYCLES"; cycles: OrderCycle[] }
   | { type: "UPSERT_ORDER_CYCLE"; cycle: OrderCycle }
   | { type: "DELETE_ORDER_CYCLE"; id: string }
+  | { type: "SET_SUPPLIERS"; suppliers: Supplier[] }
+  | { type: "UPSERT_SUPPLIER"; supplier: Supplier }
+  | { type: "DELETE_SUPPLIER"; id: string }
   | { type: "UPDATE_SETTINGS"; settings: Partial<AppSettings> }
   | { type: "HYDRATE"; state: AppState };
+
+function upsert<T extends { id: string }>(list: T[], item: T): T[] {
+  const idx = list.findIndex((i) => i.id === item.id);
+  return idx >= 0 ? list.map((i) => (i.id === item.id ? item : i)) : [...list, item];
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE":
-      return action.state;
+      return { ...INITIAL_STATE, ...action.state };
     case "SET_PRODUCTS":
       return { ...state, products: action.products };
-    case "UPSERT_PRODUCT": {
-      const exists = state.products.find((p) => p.id === action.product.id);
-      return {
-        ...state,
-        products: exists
-          ? state.products.map((p) => (p.id === action.product.id ? action.product : p))
-          : [...state.products, action.product],
-      };
-    }
+    case "UPSERT_PRODUCT":
+      return { ...state, products: upsert(state.products, action.product) };
     case "DELETE_PRODUCT":
       return { ...state, products: state.products.filter((p) => p.id !== action.id) };
     case "SET_SALES_PERIODS":
       return { ...state, salesPeriods: action.periods };
-    case "UPSERT_SALES_PERIOD": {
-      const exists = state.salesPeriods.find((p) => p.id === action.period.id);
+    case "UPSERT_SALES_PERIOD":
+      return { ...state, salesPeriods: upsert(state.salesPeriods, action.period) };
+    case "UPSERT_SALES_PERIODS":
       return {
         ...state,
-        salesPeriods: exists
-          ? state.salesPeriods.map((p) => (p.id === action.period.id ? action.period : p))
-          : [...state.salesPeriods, action.period],
+        salesPeriods: action.periods.reduce(
+          (acc, p) => upsert(acc, p),
+          state.salesPeriods
+        ),
       };
-    }
     case "DELETE_SALES_PERIOD":
       return { ...state, salesPeriods: state.salesPeriods.filter((p) => p.id !== action.id) };
     case "SET_FORECAST_RUNS":
       return { ...state, forecastRuns: action.runs };
-    case "UPSERT_FORECAST_RUN": {
-      const exists = state.forecastRuns.find((r) => r.id === action.run.id);
-      return {
-        ...state,
-        forecastRuns: exists
-          ? state.forecastRuns.map((r) => (r.id === action.run.id ? action.run : r))
-          : [...state.forecastRuns, action.run],
-      };
-    }
+    case "UPSERT_FORECAST_RUN":
+      return { ...state, forecastRuns: upsert(state.forecastRuns, action.run) };
     case "DELETE_FORECAST_RUN":
       return { ...state, forecastRuns: state.forecastRuns.filter((r) => r.id !== action.id) };
     case "SET_PURCHASE_ORDERS":
       return { ...state, purchaseOrders: action.orders };
-    case "UPSERT_PURCHASE_ORDER": {
-      const exists = state.purchaseOrders.find((o) => o.id === action.order.id);
-      return {
-        ...state,
-        purchaseOrders: exists
-          ? state.purchaseOrders.map((o) => (o.id === action.order.id ? action.order : o))
-          : [...state.purchaseOrders, action.order],
-      };
-    }
+    case "UPSERT_PURCHASE_ORDER":
+      return { ...state, purchaseOrders: upsert(state.purchaseOrders, action.order) };
     case "DELETE_PURCHASE_ORDER":
       return { ...state, purchaseOrders: state.purchaseOrders.filter((o) => o.id !== action.id) };
     case "SET_ORDER_CYCLES":
       return { ...state, orderCycles: action.cycles };
-    case "UPSERT_ORDER_CYCLE": {
-      const exists = state.orderCycles.find((c) => c.id === action.cycle.id);
-      return {
-        ...state,
-        orderCycles: exists
-          ? state.orderCycles.map((c) => (c.id === action.cycle.id ? action.cycle : c))
-          : [...state.orderCycles, action.cycle],
-      };
-    }
+    case "UPSERT_ORDER_CYCLE":
+      return { ...state, orderCycles: upsert(state.orderCycles, action.cycle) };
     case "DELETE_ORDER_CYCLE":
       return { ...state, orderCycles: state.orderCycles.filter((c) => c.id !== action.id) };
+    case "SET_SUPPLIERS":
+      return { ...state, suppliers: action.suppliers };
+    case "UPSERT_SUPPLIER":
+      return { ...state, suppliers: upsert(state.suppliers, action.supplier) };
+    case "DELETE_SUPPLIER":
+      return { ...state, suppliers: state.suppliers.filter((s) => s.id !== action.id) };
     case "UPDATE_SETTINGS":
       return { ...state, settings: { ...state.settings, ...action.settings } };
     default:
@@ -136,38 +127,90 @@ function reducer(state: AppState, action: Action): AppState {
 interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<Action>;
+  syncStatus: "idle" | "syncing" | "error";
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 const STORAGE_KEY = "core-action-ml-state";
+const SYNC_DEBOUNCE_MS = 1500;
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const [syncStatus, setSyncStatus] = React.useState<"idle" | "syncing" | "error">("idle");
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHydrating = useRef(true);
 
-  // Hydrate from localStorage on mount
+  // Hydrate: try server first, fall back to localStorage
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AppState;
-        dispatch({ type: "HYDRATE", state: { ...INITIAL_STATE, ...parsed } });
+    async function hydrate() {
+      try {
+        const res = await fetch("/api/sync");
+        if (res.ok) {
+          const serverState = await res.json() as AppState;
+          // If server has data, use it; otherwise check localStorage
+          const hasServerData = serverState.products.length > 0 ||
+            serverState.salesPeriods.length > 0 ||
+            serverState.suppliers.length > 0;
+
+          if (hasServerData) {
+            dispatch({ type: "HYDRATE", state: { ...INITIAL_STATE, ...serverState } });
+            isHydrating.current = false;
+            return;
+          }
+        }
+      } catch {
+        // server sync unavailable, fall through to localStorage
       }
-    } catch {
-      // ignore parse errors
+
+      // localStorage fallback
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as AppState;
+          dispatch({ type: "HYDRATE", state: { ...INITIAL_STATE, ...parsed } });
+        }
+      } catch {
+        // ignore
+      }
+      isHydrating.current = false;
     }
+    void hydrate();
   }, []);
 
-  // Persist to localStorage on every state change
+  // Sync state to both localStorage and server (debounced)
+  const syncToServer = useCallback((s: AppState) => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      setSyncStatus("syncing");
+      try {
+        await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(s),
+        });
+        setSyncStatus("idle");
+      } catch {
+        setSyncStatus("error");
+      }
+    }, SYNC_DEBOUNCE_MS);
+  }, []);
+
   useEffect(() => {
+    if (isHydrating.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // ignore quota errors
+      // ignore quota
     }
-  }, [state]);
+    syncToServer(state);
+  }, [state, syncToServer]);
 
-  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={{ state, dispatch, syncStatus }}>
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export function useAppStore(): AppContextValue {
