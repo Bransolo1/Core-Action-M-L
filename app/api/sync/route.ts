@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { DEFAULT_SETTINGS } from "@/types/settings";
 import type { AppState } from "@/store/app-store";
 import type { BoxDimensions, SizeCurve } from "@/types/product";
-import type { ProductForecast } from "@/types/forecast";
+import type { ProductForecast, ForecastRun } from "@/types/forecast";
 import type { POLineItem, OrderCycleType } from "@/types/purchase-order";
 
 function unauth() {
@@ -63,8 +63,11 @@ export async function GET() {
       })),
       forecastRuns: forecastRuns.map((f) => ({
         id: f.id, name: f.name, windowStart: f.windowStart, windowEnd: f.windowEnd,
+        scenario: ((f as { scenario?: string }).scenario ?? "base") as ForecastRun["scenario"],
+        scenarioMultiplier: ((f as { scenarioMultiplier?: number }).scenarioMultiplier ?? 1.0),
         orderCycleId: f.orderCycleId ?? undefined,
         products: f.products as unknown as ProductForecast[],
+        errors: ((f as { errors?: ForecastRun["errors"] }).errors ?? []),
         notes: f.notes ?? undefined, createdAt: f.createdAt.toISOString(),
       })),
       purchaseOrders: purchaseOrders.map((po) => ({

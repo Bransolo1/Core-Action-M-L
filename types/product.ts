@@ -41,6 +41,18 @@ export interface Product {
   isNewToMarket: boolean;
   /** ID of analogous product used for new-to-market prediction */
   analogousProductId?: string;
+  /**
+   * Supplier minimum order quantity.
+   * If set, orderedQty in a PO must be ≥ this value or rounded up to the
+   * next carton multiple that meets the MOQ. Set to 0 or omit to disable.
+   */
+  minOrderQty?: number;
+  /**
+   * Days from purchase order placement to goods arriving in the warehouse.
+   * Used to shift the forecast window so the PO covers the in-stock period,
+   * not the order date.
+   */
+  leadTimeDays?: number;
   createdAt: string;
   updatedAt: string;
 }
