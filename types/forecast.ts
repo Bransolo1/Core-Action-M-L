@@ -51,6 +51,9 @@ export interface ForecastRun {
   windowStart: string;
   windowEnd: string;
   orderCycleId?: string;
+  scenario?: string;
+  scenarioMultiplier?: number;
   products: ProductForecast[];
+  errors?: string[];
   notes?: string;
 }

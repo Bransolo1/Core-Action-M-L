@@ -38,6 +38,10 @@ export interface Product {
   boxDimensions?: BoxDimensions;
   /** Units per carton */
   unitsPerCarton: number;
+  /** Minimum order quantity */
+  minOrderQty: number;
+  /** Product-level lead time in days (overrides supplier) */
+  leadTimeDays: number;
   /** Size curve for apparel/footwear — percentages per size */
   sizeCurve?: SizeCurve;
   isActive: boolean;
@@ -49,3 +53,11 @@ export interface Product {
 }
 
 export type ProductFormData = Omit<Product, "id" | "createdAt" | "updatedAt">;
+
+export interface InventorySnapshot {
+  id: string;
+  productId: string;
+  quantityOnHand: number;
+  reorderPoint: number;
+  lastUpdated: string;
+}
