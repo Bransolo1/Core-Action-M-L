@@ -3,17 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-
-enum Role {
-  ADMIN
-  BUYER
-  VIEWER
-}
+// Role values: "ADMIN" | "BUYER" | "VIEWER"
 
 model User {
   id            String      @id @default(cuid())
@@ -22,7 +17,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
-  role          Role        @default(BUYER)
+  role          String      @default("BUYER")
   accounts      Account[]
   sessions      Session[]
   poComments    POComment[]
@@ -77,13 +72,13 @@ model Product {
   costCents          Int
   landedCostCents    Int
   landedCostFactor   Float
-  /// JSON: BoxDimensions { lengthMm, widthMm, heightMm, weightGrams }
-  boxDimensions      Json?
+  /// Serialised JSON: BoxDimensions { lengthMm, widthMm, heightMm, weightGrams }
+  boxDimensions      String?
   unitsPerCarton     Int
   minOrderQty        Int                 @default(1)
   leadTimeDays       Int                 @default(0)
-  /// JSON: SizeCurve { label, sizes: SizeRun[] }
-  sizeCurve          Json?
+  /// Serialised JSON: SizeCurve { label, sizes: SizeRun[] }
+  sizeCurve          String?
   isActive           Boolean             @default(true)
   isNewToMarket      Boolean             @default(false)
   analogousProductId String?
@@ -126,10 +121,10 @@ model ForecastRun {
   orderCycleId        String?
   scenario            String?
   scenarioMultiplier  Float?
-  /// JSON: ProductForecast[]
-  products            Json
-  /// JSON: string[] — validation / processing errors
-  errors              Json?
+  /// Serialised JSON: ProductForecast[]
+  products            String
+  /// Serialised JSON: string[] — validation / processing errors
+  errors              String?
   notes               String?
   createdAt           DateTime @default(now())
 }
@@ -152,8 +147,8 @@ model PurchaseOrder {
   supplierId            String?
   supplierName          String?
   status                String      @default("draft")
-  /// JSON: POLineItem[]
-  lines                 Json
+  /// Serialised JSON: POLineItem[]
+  lines                 String
   fullValueCents        Int
   optimisedValueCents   Int
   budgetCents           Int
@@ -220,9 +215,9 @@ model AppSettings {
   defaultLandedCostFactor   Float    @default(1.15)
   targetGrossMarginPct      Float    @default(50)
   defaultForecastWindowDays Int      @default(90)
-  /// JSON: OrderCycle[]
-  orderCycles               Json     @default("[]")
-  /// JSON: CategorySeasonalConfig[]
-  seasonalConfigs           Json     @default("[]")
+  /// Serialised JSON: OrderCycle[]
+  orderCycles               String   @default("[]")
+  /// Serialised JSON: CategorySeasonalConfig[]
+  seasonalConfigs           String   @default("[]")
   updatedAt                 DateTime @updatedAt
 }

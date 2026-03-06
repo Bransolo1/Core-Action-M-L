@@ -39,8 +39,8 @@ async function main() {
       defaultLandedCostFactor: 1.15,
       targetGrossMarginPct: 50,
       defaultForecastWindowDays: 90,
-      orderCycles: [],
-      seasonalConfigs: [],
+      orderCycles: "[]",
+      seasonalConfigs: "[]",
     },
   });
 
