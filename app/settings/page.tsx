@@ -24,7 +24,7 @@ const CYCLE_TYPES: { value: OrderCycleType; label: string }[] = [
 
 export default function SettingsPage() {
   const { state, dispatch } = useAppStore();
-  const { settings, orderCycles } = state;
+  const { settings, orderCycles, purchaseOrders } = state;
   const [showCycleForm, setShowCycleForm] = useState(false);
   const [showSeasonalForm, setShowSeasonalForm] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -79,13 +79,17 @@ export default function SettingsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  {["Name", "Type", "Order Date", "Delivery", "Season Window", "Budget", "Max Vol (CBM)", "Status", ""].map((h) => (
+                  {["Name", "Type", "Order Date", "Delivery", "Season Window", "Budget", "POs Placed", "OTB", "Max Vol (CBM)", "Status", ""].map((h) => (
                     <th key={h} className="py-2 pr-4 text-xs font-600 uppercase tracking-wider text-brand-dark-gray">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {orderCycles.map((cycle) => (
+                {orderCycles.map((cycle) => {
+                  const cyclePOs = purchaseOrders.filter((po) => po.orderCycleId === cycle.id);
+                  const totalPlaced = cyclePOs.reduce((s, po) => s + po.optimisedValueCents, 0);
+                  const otb = cycle.budgetCents - totalPlaced;
+                  return (
                   <tr key={cycle.id} className="hover:bg-brand-gray/30">
                     <td className="py-2.5 pr-4 font-500">{cycle.name}</td>
                     <td className="py-2.5 pr-4">
@@ -95,6 +99,10 @@ export default function SettingsPage() {
                     <td className="py-2.5 pr-4 font-mono text-xs">{cycle.expectedDeliveryDate}</td>
                     <td className="py-2.5 pr-4 font-mono text-xs">{cycle.seasonStart} → {cycle.seasonEnd}</td>
                     <td className="py-2.5 pr-4 font-mono text-xs">${(cycle.budgetCents / 100).toLocaleString()}</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">${(totalPlaced / 100).toLocaleString()}</td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs font-700 ${otb < 0 ? "text-red-600" : otb < cycle.budgetCents * 0.1 ? "text-amber-600" : "text-green-600"}`}>
+                      ${(otb / 100).toLocaleString()}
+                    </td>
                     <td className="py-2.5 pr-4 font-mono text-xs">{cycle.maxVolumeCBM ?? "—"}</td>
                     <td className="py-2.5 pr-4">
                       <Badge variant={cycle.isActive ? "success" : "default"}>
@@ -114,7 +122,8 @@ export default function SettingsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
