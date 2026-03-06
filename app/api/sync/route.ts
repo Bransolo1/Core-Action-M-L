@@ -37,8 +37,8 @@ export async function GET() {
           defaultLandedCostFactor: dbSettings.defaultLandedCostFactor,
           targetGrossMarginPct: dbSettings.targetGrossMarginPct,
           defaultForecastWindowDays: dbSettings.defaultForecastWindowDays,
-          orderCycles: dbSettings.orderCycles as unknown as typeof DEFAULT_SETTINGS.orderCycles,
-          seasonalConfigs: dbSettings.seasonalConfigs as unknown as typeof DEFAULT_SETTINGS.seasonalConfigs,
+          orderCycles: JSON.parse(dbSettings.orderCycles || "[]") as typeof DEFAULT_SETTINGS.orderCycles,
+          seasonalConfigs: JSON.parse(dbSettings.seasonalConfigs || "[]") as typeof DEFAULT_SETTINGS.seasonalConfigs,
         }
       : DEFAULT_SETTINGS;
 
@@ -49,8 +49,8 @@ export async function GET() {
         supplierId: p.supplierId ?? undefined,
         rrpCents: p.rrpCents, costCents: p.costCents,
         landedCostCents: p.landedCostCents, landedCostFactor: p.landedCostFactor,
-        boxDimensions: (p.boxDimensions ?? undefined) as BoxDimensions | undefined,
-        sizeCurve: (p.sizeCurve ?? undefined) as SizeCurve | undefined,
+        boxDimensions: p.boxDimensions ? JSON.parse(p.boxDimensions) as BoxDimensions : undefined,
+        sizeCurve: p.sizeCurve ? JSON.parse(p.sizeCurve) as SizeCurve : undefined,
         unitsPerCarton: p.unitsPerCarton, minOrderQty: p.minOrderQty, leadTimeDays: p.leadTimeDays,
         isActive: p.isActive, isNewToMarket: p.isNewToMarket,
         analogousProductId: p.analogousProductId ?? undefined,
@@ -68,15 +68,15 @@ export async function GET() {
         orderCycleId: f.orderCycleId ?? undefined,
         scenario: f.scenario ?? undefined,
         scenarioMultiplier: f.scenarioMultiplier ?? undefined,
-        products: f.products as unknown as ProductForecast[],
-        errors: (f.errors ?? undefined) as string[] | undefined,
+        products: JSON.parse(f.products) as ProductForecast[],
+        errors: f.errors ? JSON.parse(f.errors) as string[] : undefined,
         notes: f.notes ?? undefined, createdAt: f.createdAt.toISOString(),
       })),
       purchaseOrders: purchaseOrders.map((po) => ({
         id: po.id, reference: po.reference, orderCycleId: po.orderCycleId,
         supplierId: po.supplierId ?? undefined, supplierName: po.supplierName ?? undefined,
         status: po.status as "draft"|"submitted"|"confirmed"|"received",
-        lines: po.lines as unknown as POLineItem[],
+        lines: JSON.parse(po.lines) as POLineItem[],
         fullValueCents: po.fullValueCents, optimisedValueCents: po.optimisedValueCents,
         budgetCents: po.budgetCents, totalRevenueCents: po.totalRevenueCents,
         totalGrossProfitCents: po.totalGrossProfitCents, overallGrossMarginPct: po.overallGrossMarginPct,
@@ -126,13 +126,18 @@ export async function POST(req: NextRequest) {
 
     await prisma.$transaction(async (tx) => {
       for (const p of state.products) {
-        const { createdAt, updatedAt, ...rest } = p;
+        const { createdAt, updatedAt, boxDimensions, sizeCurve, ...rest } = p;
+        const data = {
+          ...rest,
+          boxDimensions: boxDimensions ? JSON.stringify(boxDimensions) : null,
+          sizeCurve: sizeCurve ? JSON.stringify(sizeCurve) : null,
+        };
         await tx.product.upsert({
           where: { id: p.id },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          create: { ...rest, id: p.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) } as any,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          update: { ...rest, updatedAt: new Date(updatedAt) } as any,
+          create: { ...data, id: p.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) } as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          update: { ...data, updatedAt: new Date(updatedAt) } as any,
         });
       }
       for (const s of state.salesPeriods) {
@@ -145,18 +150,20 @@ export async function POST(req: NextRequest) {
       }
       for (const f of state.forecastRuns) {
         const { createdAt, products: fps, errors: errs, ...rest } = f;
+        const data = { ...rest, products: JSON.stringify(fps), errors: errs ? JSON.stringify(errs) : null };
         await tx.forecastRun.upsert({
           where: { id: f.id },
-          create: { ...rest, id: f.id, products: fps as unknown as object[], errors: errs ? (errs as unknown as object[]) : undefined, createdAt: new Date(createdAt) },
-          update: { ...rest, products: fps as unknown as object[], errors: errs ? (errs as unknown as object[]) : undefined },
+          create: { ...data, id: f.id, createdAt: new Date(createdAt) },
+          update: data,
         });
       }
       for (const po of state.purchaseOrders) {
         const { createdAt, updatedAt, lines, ...rest } = po;
+        const data = { ...rest, lines: JSON.stringify(lines) };
         await tx.purchaseOrder.upsert({
           where: { id: po.id },
-          create: { ...rest, id: po.id, lines: lines as unknown as object[], createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) },
-          update: { ...rest, lines: lines as unknown as object[], updatedAt: new Date(updatedAt) },
+          create: { ...data, id: po.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) },
+          update: { ...data, updatedAt: new Date(updatedAt) },
         });
       }
       for (const c of state.orderCycles) {
@@ -191,13 +198,13 @@ export async function POST(req: NextRequest) {
         where: { id: "singleton" },
         create: {
           id: "singleton", ...state.settings,
-          orderCycles: state.settings.orderCycles as object[],
-          seasonalConfigs: state.settings.seasonalConfigs as object[],
+          orderCycles: JSON.stringify(state.settings.orderCycles),
+          seasonalConfigs: JSON.stringify(state.settings.seasonalConfigs),
         },
         update: {
           ...state.settings,
-          orderCycles: state.settings.orderCycles as object[],
-          seasonalConfigs: state.settings.seasonalConfigs as object[],
+          orderCycles: JSON.stringify(state.settings.orderCycles),
+          seasonalConfigs: JSON.stringify(state.settings.seasonalConfigs),
         },
       });
     });
