@@ -67,6 +67,8 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     landedCostCents: 4025,
     landedCostFactor: 1.15,
     unitsPerCarton: 10,
+    minOrderQty: 1,
+    leadTimeDays: 0,
     isActive: true,
     isNewToMarket: false,
     createdAt: "2024-01-01T00:00:00Z",
