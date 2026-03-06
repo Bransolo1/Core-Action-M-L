@@ -11,6 +11,7 @@ import {
   Settings,
   Truck,
   Upload,
+  PieChart,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
       { href: "/sales", label: "Sales History", icon: BarChart2 },
       { href: "/forecasting", label: "Forecasting", icon: TrendingUp },
       { href: "/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
+      { href: "/abc-analysis", label: "ABC Analysis", icon: PieChart },
     ],
   },
   {
