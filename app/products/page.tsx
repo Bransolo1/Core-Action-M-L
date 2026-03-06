@@ -206,6 +206,8 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
         landedCostFactor: editingProduct.landedCostFactor,
         boxDimensions: editingProduct.boxDimensions,
         unitsPerCarton: editingProduct.unitsPerCarton,
+        minOrderQty: editingProduct.minOrderQty,
+        leadTimeDays: editingProduct.leadTimeDays,
         isActive: editingProduct.isActive,
         isNewToMarket: editingProduct.isNewToMarket,
         analogousProductId: editingProduct.analogousProductId,
@@ -219,6 +221,8 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
         landedCostCents: 0,
         landedCostFactor: 1.15,
         unitsPerCarton: 1,
+        minOrderQty: 1,
+        leadTimeDays: 0,
         isActive: true,
         isNewToMarket: false,
       };
@@ -334,6 +338,11 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
             <Input label="Weight (g)" id="weightGrams" type="number" {...register("boxDimensions.weightGrams", { valueAsNumber: true })} />
             <Input label="Units / Carton" id="unitsPerCarton" type="number" {...register("unitsPerCarton", { valueAsNumber: true, min: 1 })} />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Input label="Min Order Qty" id="minOrderQty" type="number" {...register("minOrderQty", { valueAsNumber: true, min: 1 })} />
+          <Input label="Lead Time (days)" id="leadTimeDays" type="number" {...register("leadTimeDays", { valueAsNumber: true, min: 0 })} />
         </div>
 
         {/* Flags */}
