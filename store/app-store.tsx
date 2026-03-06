@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useReducer, useRef } from "react";
-import type { Product } from "@/types/product";
+import type { Product, InventorySnapshot } from "@/types/product";
 import type { SalesPeriod } from "@/types/sales";
 import type { ForecastRun } from "@/types/forecast";
 import type { PurchaseOrder, OrderCycle } from "@/types/purchase-order";
@@ -20,6 +20,7 @@ export interface AppState {
   purchaseOrders: PurchaseOrder[];
   orderCycles: OrderCycle[];
   suppliers: Supplier[];
+  inventorySnapshots: InventorySnapshot[];
   settings: AppSettings;
 }
 
@@ -30,6 +31,7 @@ export const INITIAL_STATE: AppState = {
   purchaseOrders: [],
   orderCycles: [],
   suppliers: [],
+  inventorySnapshots: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -57,6 +59,8 @@ type Action =
   | { type: "SET_SUPPLIERS"; suppliers: Supplier[] }
   | { type: "UPSERT_SUPPLIER"; supplier: Supplier }
   | { type: "DELETE_SUPPLIER"; id: string }
+  | { type: "SET_INVENTORY_SNAPSHOTS"; snapshots: InventorySnapshot[] }
+  | { type: "UPSERT_INVENTORY_SNAPSHOT"; snapshot: InventorySnapshot }
   | { type: "UPDATE_SETTINGS"; settings: Partial<AppSettings> }
   | { type: "HYDRATE"; state: AppState };
 
@@ -113,6 +117,19 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, suppliers: upsert(state.suppliers, action.supplier) };
     case "DELETE_SUPPLIER":
       return { ...state, suppliers: state.suppliers.filter((s) => s.id !== action.id) };
+    case "SET_INVENTORY_SNAPSHOTS":
+      return { ...state, inventorySnapshots: action.snapshots };
+    case "UPSERT_INVENTORY_SNAPSHOT": {
+      const idx = state.inventorySnapshots.findIndex(
+        (s) => s.productId === action.snapshot.productId
+      );
+      if (idx >= 0) {
+        const updated = [...state.inventorySnapshots];
+        updated[idx] = action.snapshot;
+        return { ...state, inventorySnapshots: updated };
+      }
+      return { ...state, inventorySnapshots: [...state.inventorySnapshots, action.snapshot] };
+    }
     case "UPDATE_SETTINGS":
       return { ...state, settings: { ...state.settings, ...action.settings } };
     default:

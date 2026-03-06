@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_SETTINGS } from "@/types/settings";
 import type { AppState } from "@/store/app-store";
-import type { BoxDimensions, SizeCurve } from "@/types/product";
+import type { BoxDimensions, SizeCurve, InventorySnapshot } from "@/types/product";
 import type { ProductForecast } from "@/types/forecast";
 import type { POLineItem, OrderCycleType } from "@/types/purchase-order";
 
@@ -17,7 +17,7 @@ export async function GET() {
   if (!session) return unauth();
 
   try {
-    const [products, salesPeriods, forecastRuns, purchaseOrders, orderCycles, suppliers, dbSettings] =
+    const [products, salesPeriods, forecastRuns, purchaseOrders, orderCycles, suppliers, inventorySnapshots, dbSettings] =
       await Promise.all([
         prisma.product.findMany({ orderBy: { createdAt: "asc" } }),
         prisma.salesPeriod.findMany({ orderBy: { periodStart: "asc" } }),
@@ -25,6 +25,7 @@ export async function GET() {
         prisma.purchaseOrder.findMany({ orderBy: { createdAt: "desc" } }),
         prisma.orderCycle.findMany({ orderBy: { orderDate: "asc" } }),
         prisma.supplier.findMany({ orderBy: { name: "asc" } }),
+        prisma.inventorySnapshot.findMany(),
         prisma.appSettings.findUnique({ where: { id: "singleton" } }),
       ]);
 
@@ -50,7 +51,8 @@ export async function GET() {
         landedCostCents: p.landedCostCents, landedCostFactor: p.landedCostFactor,
         boxDimensions: (p.boxDimensions ?? undefined) as BoxDimensions | undefined,
         sizeCurve: (p.sizeCurve ?? undefined) as SizeCurve | undefined,
-        unitsPerCarton: p.unitsPerCarton, isActive: p.isActive, isNewToMarket: p.isNewToMarket,
+        unitsPerCarton: p.unitsPerCarton, minOrderQty: p.minOrderQty, leadTimeDays: p.leadTimeDays,
+        isActive: p.isActive, isNewToMarket: p.isNewToMarket,
         analogousProductId: p.analogousProductId ?? undefined,
         createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString(),
       })),
@@ -64,7 +66,10 @@ export async function GET() {
       forecastRuns: forecastRuns.map((f) => ({
         id: f.id, name: f.name, windowStart: f.windowStart, windowEnd: f.windowEnd,
         orderCycleId: f.orderCycleId ?? undefined,
+        scenario: f.scenario ?? undefined,
+        scenarioMultiplier: f.scenarioMultiplier ?? undefined,
         products: f.products as unknown as ProductForecast[],
+        errors: (f.errors ?? undefined) as string[] | undefined,
         notes: f.notes ?? undefined, createdAt: f.createdAt.toISOString(),
       })),
       purchaseOrders: purchaseOrders.map((po) => ({
@@ -84,6 +89,13 @@ export async function GET() {
         seasonStart: c.seasonStart, seasonEnd: c.seasonEnd,
         budgetCents: c.budgetCents, maxVolumeCBM: c.maxVolumeCBM ?? undefined,
         isActive: c.isActive,
+      })),
+      inventorySnapshots: inventorySnapshots.map((s) => ({
+        id: s.id,
+        productId: s.productId,
+        quantityOnHand: s.quantityOnHand,
+        reorderPoint: s.reorderPoint,
+        lastUpdated: s.lastUpdated.toISOString(),
       })),
       suppliers: suppliers.map((s) => ({
         id: s.id, code: s.code, name: s.name, country: s.country, currency: s.currency,
@@ -132,11 +144,11 @@ export async function POST(req: NextRequest) {
         });
       }
       for (const f of state.forecastRuns) {
-        const { createdAt, products: fps, ...rest } = f;
+        const { createdAt, products: fps, errors: errs, ...rest } = f;
         await tx.forecastRun.upsert({
           where: { id: f.id },
-          create: { ...rest, id: f.id, products: fps as unknown as object[], createdAt: new Date(createdAt) },
-          update: { ...rest, products: fps as unknown as object[] },
+          create: { ...rest, id: f.id, products: fps as unknown as object[], errors: errs ? (errs as unknown as object[]) : undefined, createdAt: new Date(createdAt) },
+          update: { ...rest, products: fps as unknown as object[], errors: errs ? (errs as unknown as object[]) : undefined },
         });
       }
       for (const po of state.purchaseOrders) {
@@ -156,6 +168,23 @@ export async function POST(req: NextRequest) {
           where: { id: s.id },
           create: { ...rest, id: s.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) },
           update: { ...rest, updatedAt: new Date(updatedAt) },
+        });
+      }
+      for (const snap of (state.inventorySnapshots ?? [])) {
+        await tx.inventorySnapshot.upsert({
+          where: { productId: snap.productId },
+          create: {
+            id: snap.id,
+            productId: snap.productId,
+            quantityOnHand: snap.quantityOnHand,
+            reorderPoint: snap.reorderPoint,
+            lastUpdated: new Date(snap.lastUpdated),
+          },
+          update: {
+            quantityOnHand: snap.quantityOnHand,
+            reorderPoint: snap.reorderPoint,
+            lastUpdated: new Date(snap.lastUpdated),
+          },
         });
       }
       await tx.appSettings.upsert({
