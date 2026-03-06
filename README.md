@@ -5,6 +5,37 @@
 
 ---
 
+## Quick Start — Download & Run
+
+**Step 1 — Download**
+
+```
+https://github.com/Bransolo1/Core-Action-M-L/archive/refs/heads/main.zip
+```
+
+Unzip it anywhere, then:
+
+**Step 2 — Run (Mac / Linux)**
+
+```bash
+./start.sh
+```
+
+**Step 2 — Run (Windows)**
+
+```
+Double-click start.bat
+```
+
+The script will:
+1. Auto-detect Docker or Node.js on your machine
+2. Ask for your [Anthropic API key](https://console.anthropic.com) (free, needed for AI insights — skip to use without)
+3. Start the app and open it at **http://localhost:3000**
+
+> **Needs one of:** [Docker Desktop](https://www.docker.com/products/docker-desktop) *(recommended — no other setup)* or [Node.js 18+](https://nodejs.org)
+
+---
+
 ## What It Does
 
 Core Action ML helps action sports buyers make data-driven purchasing decisions:
