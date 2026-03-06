@@ -19,11 +19,11 @@ import {
 import { MONTH_NAMES } from "@/lib/seasonal";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowRight, AlertTriangle, TrendingUp, Package, ShoppingCart } from "lucide-react";
+import { ArrowRight, AlertTriangle, TrendingUp, Package, ShoppingCart, Clock, Bell } from "lucide-react";
 
 export default function DashboardPage() {
   const { state } = useAppStore();
-  const { products, salesPeriods, forecastRuns, purchaseOrders } = state;
+  const { products, salesPeriods, forecastRuns, purchaseOrders, inventorySnapshots } = state;
 
   // KPI calculations
   const totalProducts = products.filter((p) => p.isActive).length;
@@ -47,6 +47,29 @@ export default function DashboardPage() {
 
   // Latest PO totals
   const latestPO = purchaseOrders.at(-1);
+
+  // Weeks of Cover: currentStock / (dailyVelocity × 7)
+  const productWOC = products
+    .filter((p) => p.isActive)
+    .map((p) => {
+      const snap = inventorySnapshots.find((s) => s.productId === p.id);
+      const periods = salesPeriods.filter((sp) => sp.productId === p.id);
+      const sta = calculateSellThrough(periods);
+      const stock = snap?.quantityOnHand ?? 0;
+      const woc = sta.dailyVelocity > 0 ? stock / (sta.dailyVelocity * 7) : stock > 0 ? Infinity : 0;
+      return { product: p, stock, velocity: sta.dailyVelocity, woc, reorderPoint: snap?.reorderPoint ?? 0 };
+    });
+
+  const productsWithStock = productWOC.filter((p) => p.stock > 0 && isFinite(p.woc));
+  const avgWOC =
+    productsWithStock.length > 0
+      ? productsWithStock.reduce((s, p) => s + p.woc, 0) / productsWithStock.length
+      : 0;
+
+  // Reorder alerts: currentStock ≤ reorderPoint
+  const reorderAlerts = productWOC.filter(
+    (p) => p.reorderPoint > 0 && p.stock <= p.reorderPoint
+  );
 
   // Category performance
   const categoryMap = new Map<string, { sold: number; received: number; products: number }>();
@@ -105,7 +128,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* KPI Row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <KPICard
           label="Active Products"
           value={String(totalProducts)}
@@ -131,6 +154,20 @@ export default function DashboardPage() {
           value={latestPO ? formatCurrency(latestPO.optimisedValueCents) : "—"}
           sub={latestPO ? latestPO.status : "No orders yet"}
           icon={<ShoppingCart className="h-5 w-5 text-brand-dark-gray" />}
+        />
+        <KPICard
+          label="Weeks of Cover"
+          value={avgWOC > 0 ? `${avgWOC.toFixed(1)}` : "—"}
+          sub={productsWithStock.length > 0 ? `${productsWithStock.length} products tracked` : "No inventory data"}
+          icon={<Clock className="h-5 w-5 text-brand-dark-gray" />}
+          danger={avgWOC > 0 && avgWOC < 4}
+        />
+        <KPICard
+          label="Reorder Alerts"
+          value={reorderAlerts.length > 0 ? String(reorderAlerts.length) : "0"}
+          sub={reorderAlerts.length > 0 ? "products below reorder point" : "All stock OK"}
+          icon={<Bell className={`h-5 w-5 ${reorderAlerts.length > 0 ? "text-red-500" : "text-brand-dark-gray"}`} />}
+          danger={reorderAlerts.length > 0}
         />
       </div>
 
@@ -208,6 +245,42 @@ export default function DashboardPage() {
                     <p className="font-mono text-xs text-brand-dark-gray">Adj. Velocity</p>
                     <p className="font-mono text-sm font-700">
                       {sta.dailyVelocity.toFixed(1)}/day
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Reorder Alerts */}
+      {reorderAlerts.length > 0 && (
+        <Card className="border border-red-200">
+          <CardHeader>
+            <CardTitle>Reorder Alerts</CardTitle>
+            <Badge variant="danger">{reorderAlerts.length} below reorder point</Badge>
+          </CardHeader>
+          <div className="divide-y divide-gray-100">
+            {reorderAlerts.map(({ product, stock, reorderPoint, woc }) => (
+              <div key={product.id} className="flex items-center justify-between py-3">
+                <div>
+                  <p className="text-sm font-600">{product.name}</p>
+                  <p className="text-xs text-brand-dark-gray">{product.sku} · {product.category}</p>
+                </div>
+                <div className="flex items-center gap-4 text-right">
+                  <div>
+                    <p className="font-mono text-xs text-brand-dark-gray">On Hand</p>
+                    <p className="font-mono text-sm font-700 text-red-600">{stock}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-xs text-brand-dark-gray">Reorder Pt</p>
+                    <p className="font-mono text-sm font-700">{reorderPoint}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-xs text-brand-dark-gray">WOC</p>
+                    <p className={`font-mono text-sm font-700 ${woc < 4 ? "text-red-600" : "text-brand-black"}`}>
+                      {isFinite(woc) ? `${woc.toFixed(1)}w` : "—"}
                     </p>
                   </div>
                 </div>
