@@ -18,7 +18,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   businessName: "Core Action Sports",
-  currency: "AUD",
+  currency: "GBP",
   defaultLandedCostFactor: 1.15,
   orderCycles: [],
   seasonalConfigs: [],

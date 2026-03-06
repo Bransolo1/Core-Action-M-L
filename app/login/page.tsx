@@ -41,13 +41,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center bg-brand-red">
-            <span className="text-sm font-800 tracking-tight text-white">CA</span>
+          <div className="flex h-12 w-24 items-center justify-center bg-brand-red">
+            <span className="text-lg font-800 tracking-tight text-white">CORE</span>
           </div>
           <div className="text-center">
-            <p className="text-lg font-700 tracking-tight text-white">CORE ACTION</p>
+            <p className="text-lg font-700 tracking-tight text-white">ACTION SPORTS</p>
             <p className="text-xs font-500 uppercase tracking-widest text-white/40">
-              Inventory ML
+              Buyer Portal
             </p>
           </div>
         </div>

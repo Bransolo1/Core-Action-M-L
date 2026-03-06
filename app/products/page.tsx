@@ -11,27 +11,20 @@ import { formatCurrency, formatPct, calculateGrossMarginPct } from "@/lib/costs"
 import { formatDimensions, formatCBM, cartonVolumeCBM } from "@/lib/volumetrics";
 import { nanoid } from "@/lib/nanoid";
 import type { Product, ProductFormData, SizeCurve } from "@/types/product";
-import { SIZE_CURVE_CATEGORIES } from "@/types/product";
+import { SIZE_CURVE_CATEGORIES, CORE_CATEGORIES, CORE_CATEGORY_NAMES, DEFAULT_SIZE_CURVES } from "@/types/product";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-const CATEGORIES = [
-  "Skateboarding",
-  "Surfing",
-  "Snowboarding",
-  "BMX",
-  "Scooter",
-  "Footwear",
-  "Apparel",
-  "Accessories",
-  "Hardware",
-  "Protection",
-];
-
 const CATEGORY_OPTIONS = [
   { value: "", label: "— Select category —" },
-  ...CATEGORIES.map((c) => ({ value: c, label: c })),
+  ...CORE_CATEGORY_NAMES.map((c) => ({ value: c, label: c })),
 ];
+
+function subCategoryOptions(category: string) {
+  const subs = (CORE_CATEGORIES as Record<string, readonly string[]>)[category];
+  if (!subs) return [];
+  return [{ value: "", label: "— Select sub-category —" }, ...subs.map((s) => ({ value: s, label: s }))];
+}
 
 export default function ProductsPage() {
   const { state, dispatch } = useAppStore();
@@ -279,8 +272,25 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
             id="category"
             options={CATEGORY_OPTIONS}
             error={errors.category?.message}
-            {...register("category", { required: "Required" })}
+            {...register("category", {
+              required: "Required",
+              onChange: (e) => {
+                // Reset subcategory when category changes
+                setValue("subCategory", "");
+                // Auto-load default size curve for the new category
+                const defaultCurve = DEFAULT_SIZE_CURVES[e.target.value as string];
+                if (defaultCurve && !editingProduct) setSizeCurve(defaultCurve);
+              },
+            })}
           />
+          {subCategoryOptions(watchedCategory).length > 0 && (
+            <Select
+              label="Sub-category"
+              id="subCategory"
+              options={subCategoryOptions(watchedCategory)}
+              {...register("subCategory")}
+            />
+          )}
         </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Select label="Supplier" id="supplierId" options={supplierOptions} {...register("supplierId")} className="lg:col-span-2" />
@@ -288,7 +298,7 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Input
-            label="RRP ($)"
+            label="RRP (£)"
             id="rrpCents"
             type="number"
             step="0.01"
@@ -296,7 +306,7 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
             onChange={(e) => setValue("rrpCents", Math.round(parseFloat(e.target.value || "0") * 100))}
           />
           <Input
-            label="Cost Price ($)"
+            label="Cost Price (£)"
             id="costCents"
             type="number"
             step="0.01"
@@ -313,7 +323,7 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
             hint="Applied to cost price"
           />
           <Input
-            label="Landed Cost ($)"
+            label="Landed Cost (£)"
             id="landedCostCents"
             type="number"
             step="0.01"

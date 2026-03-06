@@ -42,13 +42,13 @@ export function Sidebar() {
     <aside className="flex w-60 flex-col bg-brand-black text-white">
       {/* Logo */}
       <div className="flex items-center gap-3 border-b border-white/10 px-6 py-5">
-        <div className="flex h-8 w-8 items-center justify-center bg-brand-red">
-          <span className="text-xs font-800 tracking-tight text-white">CA</span>
+        <div className="flex h-8 w-14 items-center justify-center bg-brand-red px-1">
+          <span className="text-xs font-800 tracking-tight text-white">CORE</span>
         </div>
         <div>
-          <p className="text-sm font-700 leading-tight tracking-tight">CORE ACTION</p>
+          <p className="text-sm font-700 leading-tight tracking-tight">ACTION SPORTS</p>
           <p className="text-[10px] font-500 uppercase tracking-widest text-white/50">
-            Inventory ML
+            Buyer Portal
           </p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export function Sidebar() {
         <p className="text-[10px] text-white/30">
           © {new Date().getFullYear()} Core Action Sports
         </p>
-        <p className="text-[10px] text-white/20">Born and raised in skateparks</p>
+        <p className="text-[10px] text-white/20">Riders building it for riders #ridecore</p>
       </div>
     </aside>
   );

@@ -9,8 +9,8 @@ import type { Product } from "@/types/product";
 // Formatting helpers
 // ---------------------------------------------------------------------------
 
-export function formatCurrency(cents: number, currency = "AUD"): string {
-  return new Intl.NumberFormat("en-AU", {
+export function formatCurrency(cents: number, currency = "GBP"): string {
+  return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
