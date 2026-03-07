@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
               costCents,
               landedCostCents: Math.round(costCents * existing.landedCostFactor),
               ...(weightGrams > 0 && {
-                boxDimensions: { lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams },
+                boxDimensions: JSON.stringify({ lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams }),
               }),
             },
           });
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
               isActive: true,
               isNewToMarket: false,
               ...(weightGrams > 0 && {
-                boxDimensions: { lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams },
+                boxDimensions: JSON.stringify({ lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams }),
               }),
             },
           });
@@ -173,11 +173,11 @@ export async function POST(req: NextRequest) {
     create: {
       id: "singleton",
       veeqoLastSync: new Date(),
-      veeqoSyncLog: log as object,
+      veeqoSyncLog: JSON.stringify(log),
     },
     update: {
       veeqoLastSync: new Date(),
-      veeqoSyncLog: log as object,
+      veeqoSyncLog: JSON.stringify(log),
     },
   });
 

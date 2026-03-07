@@ -1,110 +1,147 @@
 # Core Action ML — Inventory Forecast Tool
 
 > AI-powered inventory forecasting and purchase order optimisation for action sports distribution.
-> Built for **Core Action Sports** — *Born and raised in skateparks, we make products for riders by riders.* #RIDECORE
+> Built for **Core Action Sports** — *Born and raised in skateparks, we make products for riders by riders.* **#RIDECORE**
 
 ---
 
-## Quick Start — Download & Run
+## Download & Run — 3 Steps
 
-**Step 1 — Download**
+### Step 1 — Download
+
+Click the green **Code** button → **Download ZIP**, then unzip it anywhere on your computer.
+
+Or grab it directly:
 
 ```
 https://github.com/Bransolo1/Core-Action-M-L/archive/refs/heads/main.zip
 ```
 
-Unzip it anywhere, then:
+---
 
-**Step 2 — Run (Mac / Linux)**
+### Step 2 — Run
+
+**Mac / Linux** — open Terminal, drag the unzipped folder in, then run:
 
 ```bash
 ./start.sh
 ```
 
-**Step 2 — Run (Windows)**
+**Windows** — double-click `start.bat`
 
-```
-Double-click start.bat
-```
+> The script **automatically downloads and installs Node.js** if you don't have it.
+> Nothing else to install — no Docker, no database server, nothing.
 
-The script will:
-1. Auto-detect Docker or Node.js on your machine
-2. Ask for your [Anthropic API key](https://console.anthropic.com) (free, needed for AI insights — skip to use without)
-3. Start the app and open it at **http://localhost:3000**
+---
 
-> **Needs one of:** [Docker Desktop](https://www.docker.com/products/docker-desktop) *(recommended — no other setup)* or [Node.js 18+](https://nodejs.org)
+### Step 3 — Open the app
+
+The app opens automatically at **http://localhost:3000**
+
+**Default login:**
+| | |
+|---|---|
+| Email | `admin@ridecore.pro` |
+| Password | `CoreAction2026!` |
+
+> Change your password in Settings after first login.
 
 ---
 
 ## What It Does
 
-Core Action ML helps action sports buyers make data-driven purchasing decisions:
-
 | Feature | Description |
 |---------|-------------|
-| **Stockout-Adjusted Forecasting** | Velocity calculated from in-stock days only — stockout periods never dilute demand signals |
-| **Seasonal Uplift** | Monthly multipliers per product category (configurable) |
-| **New-to-Market Prediction** | Estimates velocity from analogous SKUs or category averages with ±30% confidence range |
-| **Volumetric Planning** | Box dimension tracking for carton volume, warehouse space, and freight calculations |
-| **Cost + Revenue Layer** | Cost price, landed cost (with duty/freight factor), RRP, gross margin per SKU |
-| **Purchase Order Generation** | AI-suggested POs with automatic budget optimisation sorted by profitability |
-| **Order Cycle Management** | Quarterly cycles or ad-hoc orders with configurable dates and budget caps |
-| **AI Buying Insights** | Claude AI analyses each forecast/PO and flags risks, opportunities, and actions |
+| **Stockout-Adjusted Forecasting** | Velocity from in-stock days only — stockout gaps never dilute demand signals |
+| **Seasonal Uplift** | Monthly multipliers per product category — fully configurable |
+| **New-to-Market Prediction** | Estimates velocity from analogous SKUs or category averages with confidence ranges |
+| **Volumetric Planning** | Box dimension tracking for carton volume, warehouse space, and freight |
+| **Cost + Margin Layer** | Cost price, landed cost (with duty/freight factor), RRP, gross margin per SKU |
+| **Purchase Order Builder** | AI-suggested POs with automatic budget optimisation sorted by profitability |
+| **Shopify Integration** | Auto-import products and order history — or receive live updates via webhook |
+| **Veeqo Integration** | Auto-import products, cost prices, and sales from your warehouse system |
+| **AI Buying Insights** | Claude AI analyses each forecast and PO — flags risks, opportunities, and actions |
 
 ---
 
-## Getting Started
+## Connecting Shopify & Veeqo
 
-### Prerequisites
+Go to **Integrations** in the sidebar after logging in.
 
-- Node.js 18+
-- An [Anthropic API key](https://console.anthropic.com) (for AI insights)
-
-### Install
-
-```bash
-git clone https://github.com/Bransolo1/Core-Action-M-L
-cd Core-Action-M-L
-npm install
-cp .env.local.example .env.local
-# Edit .env.local and add your ANTHROPIC_API_KEY
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
+- Enter your API credentials (shown with step-by-step instructions)
+- Click **Test Connection** to verify, then **Save**
+- Click **Sync Now** to import your full product catalogue and order history
+- Set up the Shopify webhook for live order data (URL and instructions shown in the app)
 
 ---
 
 ## Workflow
 
 ```
-1. Products      → Add SKUs with costs, landed cost factor, box dimensions
-2. Sales History → Record historical periods (with actual in-stock days)
-3. Settings      → Set up order cycles, seasonal factors, budget
-4. Forecasting   → Run a forecast for your order window
-5. Purchase Orders → Generate a PO, apply budget optimisation, export CSV
+1. Integrations  → Connect Shopify/Veeqo to auto-fill products and sales
+2. Products      → Review imported SKUs, add costs, box dimensions
+3. Sales History → Check imported sales periods, mark stockouts
+4. Settings      → Configure order cycles, seasonal factors, budget
+5. Forecasting   → Run a forecast for your next order window
+6. Purchase Orders → Generate PO, apply budget optimisation, export
 ```
 
-### Key Concept: Stockout Correction
+---
 
-Standard sell-through ignores stockout periods, underestimating demand. Example:
+## Key Concept: Stockout Correction
 
-| Scenario | Standard | Adjusted |
-|----------|---------|---------|
-| 100 units in, 100 sold in 30/90 days | STR = 100% | Velocity = 3.33/day, Demand = 300 units |
+Standard sell-through rates ignore when you ran out of stock, causing **underestimated reorders**. This tool corrects for it:
 
-Always enter **actual in-stock days** when recording a period with stockouts.
+| Scenario | Standard method | This tool |
+|----------|-----------------|-----------|
+| 100 units sold in 30 in-stock days (90-day window) | Orders 100 units | Velocity = 3.33/day → orders 300 units |
+
+Always record **actual in-stock days** when entering a sales period with stockouts.
 
 ---
 
 ## Tech Stack
 
 - **Next.js 14** (App Router) + **TypeScript**
+- **SQLite** via Prisma — embedded database, no server needed
 - **Tailwind CSS** with Core Action Sports brand tokens
 - **Recharts** for data visualisation
-- **Claude Sonnet** (`claude-sonnet-4-6`) via Anthropic SDK for AI insights
-- **localStorage** for client-side data persistence (MVP)
-- **Vitest** + React Testing Library for unit tests
+- **Claude Sonnet** via Anthropic SDK for AI insights
+- **NextAuth.js** for authentication (ADMIN / BUYER / VIEWER roles)
+
+---
+
+## Advanced Setup
+
+### PostgreSQL (for teams / production)
+
+1. Change `provider = "sqlite"` to `provider = "postgresql"` in `prisma/schema.prisma`
+2. Update `DATABASE_URL` in `.env.local` to your PostgreSQL connection string
+3. Run `npx prisma db push` to set up the schema
+
+### Docker
+
+```bash
+# Copy and edit the env file
+cp .env.local.example .env.local
+
+# Build and run (SQLite, embedded — no database server needed)
+docker compose up --build
+```
+
+### Environment Variables
+
+Copy `.env.local.example` to `.env.local` and fill in:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | `file:./local.db` (SQLite) or PostgreSQL URL |
+| `NEXTAUTH_SECRET` | Yes | Random string — generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Yes | Your app URL, e.g. `http://localhost:3000` |
+| `ANTHROPIC_API_KEY` | No | For AI insights — free at console.anthropic.com |
+| `SHOPIFY_STORE_DOMAIN` | No | Can also be set in the app UI |
+| `SHOPIFY_ACCESS_TOKEN` | No | Can also be set in the app UI |
+| `VEEQO_API_KEY` | No | Can also be set in the app UI |
 
 ---
 
@@ -113,36 +150,45 @@ Always enter **actual in-stock days** when recording a period with stockouts.
 ```bash
 npm run dev          # Dev server
 npm run build        # Production build
-npm run test         # Unit tests
+npm run test         # Unit tests (Vitest)
 npm run lint         # ESLint
 npm run type-check   # TypeScript check
+npm run db:studio    # Prisma Studio (visual DB browser)
 ```
-
-See [CLAUDE.md](./CLAUDE.md) for full architecture and AI assistant conventions.
 
 ---
 
 ## Project Structure
 
 ```
-app/            Next.js pages and API routes
-components/     React components (layout, UI primitives, feature components)
-lib/            Core algorithms (forecasting, costs, volumetrics, AI)
-store/          Global React Context + localStorage state
-types/          TypeScript type definitions
+app/            Next.js pages + API routes
+components/     React components (layout, UI, features)
+lib/            Core algorithms (forecasting, costs, volumetrics, Shopify, Veeqo)
+prisma/         Database schema + seed data
+store/          Global React Context state
+types/          TypeScript definitions
 ```
+
+See [CLAUDE.md](./CLAUDE.md) for full architecture details.
 
 ---
 
 ## Roadmap
 
+- [x] Stockout-adjusted velocity forecasting
+- [x] Seasonal uplift factors per category
+- [x] New-to-market product prediction
+- [x] Purchase order builder with budget optimisation
+- [x] Shopify integration (product + order sync + live webhook)
+- [x] Veeqo integration (product + order sync)
+- [x] AI buying insights (Claude)
+- [x] PDF + CSV export
+- [x] Multi-user authentication (ADMIN / BUYER / VIEWER)
+- [x] Analytics (ABC analysis, GMROI, weeks of cover)
 - [ ] Multi-supplier PO splitting
-- [ ] Shopify / WooCommerce sales data import
-- [ ] PDF purchase order export
-- [ ] Size curve distribution (for apparel/footwear)
-- [ ] Supplier lead time tracking
-- [ ] Team collaboration (shared state via backend DB)
+- [ ] Email notifications (PO confirmed, forecast ready)
+- [ ] Size curve distribution for apparel/footwear
 
 ---
 
-*Built on the model established by [SenseHub AutoML](https://github.com/Bransolo1/model-muse) — fully local, privacy-first, no external data transmission beyond AI inference.*
+*Built with love for riders, by riders. #RIDECORE*

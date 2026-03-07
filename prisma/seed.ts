@@ -245,8 +245,8 @@ async function main() {
       defaultLandedCostFactor: 1.15,
       targetGrossMarginPct: 50,
       defaultForecastWindowDays: 90,
-      orderCycles: ORDER_CYCLES as object[],
-      seasonalConfigs: SEASONAL_CONFIGS as object[],
+      orderCycles: JSON.stringify(ORDER_CYCLES),
+      seasonalConfigs: JSON.stringify(SEASONAL_CONFIGS),
     },
   });
   console.log("✓ AppSettings: GBP, 8 seasonal configs, 4 order cycles");

@@ -1,35 +1,32 @@
+# Core Action ML — Docker Compose
+# Runs the full app in a container with an embedded SQLite database.
+# No separate database server needed.
+#
+# Usage:
+#   docker compose up --build
+#
+# For production with PostgreSQL, see docker-compose.postgres.yml
+
 version: "3.9"
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: coreaction_ml
-      POSTGRES_USER: coreaction
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coreaction -d coreaction_ml"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build: .
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://coreaction:${POSTGRES_PASSWORD:-changeme_in_production}@db:5432/coreaction_ml
+      DATABASE_URL: file:/app/data/local.db
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SHOPIFY_STORE_DOMAIN: ${SHOPIFY_STORE_DOMAIN:-}
+      SHOPIFY_ACCESS_TOKEN: ${SHOPIFY_ACCESS_TOKEN:-}
       SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET:-}
+      VEEQO_API_KEY: ${VEEQO_API_KEY:-}
+    volumes:
+      # Persist the SQLite database across container restarts
+      - app_data:/app/data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -38,4 +35,4 @@ services:
       start_period: 30s
 
 volumes:
-  postgres_data:
+  app_data:

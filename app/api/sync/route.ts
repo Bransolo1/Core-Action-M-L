@@ -67,7 +67,7 @@ export async function GET() {
         scenarioMultiplier: ((f as { scenarioMultiplier?: number }).scenarioMultiplier ?? 1.0),
         orderCycleId: f.orderCycleId ?? undefined,
         products: f.products as unknown as ProductForecast[],
-        errors: ((f as { errors?: ForecastRun["errors"] }).errors ?? []),
+        errors: ((f.errors as unknown as ForecastRun["errors"]) ?? []),
         notes: f.notes ?? undefined, createdAt: f.createdAt.toISOString(),
       })),
       purchaseOrders: purchaseOrders.map((po) => ({
@@ -135,19 +135,19 @@ export async function POST(req: NextRequest) {
         });
       }
       for (const f of state.forecastRuns) {
-        const { createdAt, products: fps, ...rest } = f;
+        const { createdAt, products: fps, errors: errs, ...rest } = f;
         await tx.forecastRun.upsert({
           where: { id: f.id },
-          create: { ...rest, id: f.id, products: fps as unknown as object[], createdAt: new Date(createdAt) },
-          update: { ...rest, products: fps as unknown as object[] },
+          create: { ...rest, id: f.id, products: JSON.stringify(fps), errors: JSON.stringify(errs), createdAt: new Date(createdAt) },
+          update: { ...rest, products: JSON.stringify(fps), errors: JSON.stringify(errs) },
         });
       }
       for (const po of state.purchaseOrders) {
         const { createdAt, updatedAt, lines, ...rest } = po;
         await tx.purchaseOrder.upsert({
           where: { id: po.id },
-          create: { ...rest, id: po.id, lines: lines as unknown as object[], createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) },
-          update: { ...rest, lines: lines as unknown as object[], updatedAt: new Date(updatedAt) },
+          create: { ...rest, id: po.id, lines: JSON.stringify(lines), createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) },
+          update: { ...rest, lines: JSON.stringify(lines), updatedAt: new Date(updatedAt) },
         });
       }
       for (const c of state.orderCycles) {
@@ -165,13 +165,13 @@ export async function POST(req: NextRequest) {
         where: { id: "singleton" },
         create: {
           id: "singleton", ...state.settings,
-          orderCycles: state.settings.orderCycles as object[],
-          seasonalConfigs: state.settings.seasonalConfigs as object[],
+          orderCycles: JSON.stringify(state.settings.orderCycles),
+          seasonalConfigs: JSON.stringify(state.settings.seasonalConfigs),
         },
         update: {
           ...state.settings,
-          orderCycles: state.settings.orderCycles as object[],
-          seasonalConfigs: state.settings.seasonalConfigs as object[],
+          orderCycles: JSON.stringify(state.settings.orderCycles),
+          seasonalConfigs: JSON.stringify(state.settings.seasonalConfigs),
         },
       });
     });

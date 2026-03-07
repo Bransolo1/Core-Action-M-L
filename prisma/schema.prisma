@@ -3,17 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  // Default: SQLite — works out of the box, no server needed.
+  // To use PostgreSQL (production/team): change provider to "postgresql"
+  // and update DATABASE_URL to your connection string.
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-
-enum Role {
-  ADMIN
-  BUYER
-  VIEWER
-}
+// Role stored as String for SQLite compatibility: "ADMIN" | "BUYER" | "VIEWER"
 
 model User {
   id            String      @id @default(cuid())
@@ -22,7 +20,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
-  role          Role        @default(BUYER)
+  role          String      @default("BUYER")
   accounts      Account[]
   sessions      Session[]
   poComments    POComment[]
@@ -78,10 +76,10 @@ model Product {
   landedCostCents    Int
   landedCostFactor   Float
   /// JSON: BoxDimensions { lengthMm, widthMm, heightMm, weightGrams }
-  boxDimensions      Json?
+  boxDimensions      String?
   unitsPerCarton     Int
   /// JSON: SizeCurve { label, sizes: SizeRun[] }
-  sizeCurve          Json?
+  sizeCurve          String?
   isActive           Boolean       @default(true)
   isNewToMarket      Boolean       @default(false)
   analogousProductId String?
@@ -130,9 +128,9 @@ model ForecastRun {
   /// Velocity multiplier applied (1.0 base, 1.2 bull, 0.8 bear)
   scenarioMultiplier Float    @default(1.0)
   /// JSON: ProductForecast[]
-  products           Json
+  products           String
   /// JSON: { sku: string; message: string }[]
-  errors             Json     @default("[]")
+  errors             String     @default("[]")
   notes              String?
   createdAt          DateTime @default(now())
 }
@@ -145,7 +143,7 @@ model PurchaseOrder {
   supplierName          String?
   status                String      @default("draft")
   /// JSON: POLineItem[]
-  lines                 Json
+  lines                 String
   fullValueCents        Int
   optimisedValueCents   Int
   budgetCents           Int
@@ -213,9 +211,9 @@ model AppSettings {
   targetGrossMarginPct      Float    @default(50)
   defaultForecastWindowDays Int      @default(90)
   /// JSON: OrderCycle[]
-  orderCycles               Json     @default("[]")
+  orderCycles               String     @default("[]")
   /// JSON: CategorySeasonalConfig[]
-  seasonalConfigs           Json     @default("[]")
+  seasonalConfigs           String     @default("[]")
   updatedAt                 DateTime @updatedAt
 }
 
@@ -230,12 +228,12 @@ model IntegrationCredentials {
   shopifyEnabled  Boolean   @default(false)
   shopifyLastSync DateTime?
   /// JSON: SyncLog
-  shopifySyncLog  Json?
+  shopifySyncLog  String?
   // Veeqo REST API
   veeqoApiKey     String?
   veeqoEnabled    Boolean   @default(false)
   veeqoLastSync   DateTime?
   /// JSON: SyncLog
-  veeqoSyncLog    Json?
+  veeqoSyncLog    String?
   updatedAt       DateTime  @updatedAt
 }

@@ -93,10 +93,9 @@ export async function POST(req: NextRequest) {
               rrpCents,
               costCents,
               landedCostCents: Math.round(costCents * existing.landedCostFactor),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               boxDimensions: weightGrams
-                ? { lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams }
-                : (existing.boxDimensions as any) ?? undefined,
+                ? JSON.stringify({ lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams })
+                : (existing.boxDimensions ?? undefined),
             },
           });
           log.productsUpdated++;
@@ -115,7 +114,7 @@ export async function POST(req: NextRequest) {
               isActive: sp.status === "active",
               isNewToMarket: false,
               boxDimensions: weightGrams
-                ? { lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams }
+                ? JSON.stringify({ lengthMm: 0, widthMm: 0, heightMm: 0, weightGrams })
                 : undefined,
             },
           });
@@ -194,11 +193,11 @@ export async function POST(req: NextRequest) {
     create: {
       id: "singleton",
       shopifyLastSync: new Date(),
-      shopifySyncLog: log as object,
+      shopifySyncLog: JSON.stringify(log),
     },
     update: {
       shopifyLastSync: new Date(),
-      shopifySyncLog: log as object,
+      shopifySyncLog: JSON.stringify(log),
     },
   });
 
