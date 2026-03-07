@@ -35,7 +35,7 @@ const CATEGORY_OPTIONS = [
 
 export default function ProductsPage() {
   const { state, dispatch } = useAppStore();
-  const { products, suppliers } = state;
+  const { products, suppliers, inventorySnapshots } = state;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -83,8 +83,10 @@ export default function ProductsPage() {
           editingProduct={editingId ? products.find((p) => p.id === editingId) : undefined}
           products={products}
           suppliers={suppliers}
+          currentReorderPoint={editingId ? (inventorySnapshots.find((s) => s.productId === editingId)?.reorderPoint ?? 0) : 0}
           onClose={handleClose}
-          onSave={(data) => {
+          onSave={(data, reorderPoint) => {
+            const productId = editingId ?? nanoid();
             if (editingId) {
               dispatch({
                 type: "UPSERT_PRODUCT",
@@ -93,7 +95,20 @@ export default function ProductsPage() {
             } else {
               dispatch({
                 type: "UPSERT_PRODUCT",
-                product: { ...data, id: nanoid(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                product: { ...data, id: productId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+              });
+            }
+            if (reorderPoint !== undefined && reorderPoint > 0) {
+              const existing = inventorySnapshots.find((s) => s.productId === productId);
+              dispatch({
+                type: "UPSERT_INVENTORY_SNAPSHOT",
+                snapshot: {
+                  id: existing?.id ?? nanoid(),
+                  productId,
+                  quantityOnHand: existing?.quantityOnHand ?? 0,
+                  reorderPoint,
+                  lastUpdated: new Date().toISOString(),
+                },
               });
             }
             handleClose();
@@ -188,11 +203,13 @@ interface ProductFormProps {
   editingProduct?: Product;
   products: Product[];
   suppliers: import("@/types/supplier").Supplier[];
+  currentReorderPoint?: number;
   onClose: () => void;
-  onSave: (data: ProductFormData) => void;
+  onSave: (data: ProductFormData, reorderPoint?: number) => void;
 }
 
-function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: ProductFormProps) {
+function ProductForm({ editingProduct, products, suppliers, currentReorderPoint, onClose, onSave }: ProductFormProps) {
+  const [reorderPoint, setReorderPoint] = useState(String(currentReorderPoint ?? 0));
   const [sizeCurve, setSizeCurve] = useState<SizeCurve | undefined>(editingProduct?.sizeCurve);
   const defaultValues: ProductFormData = editingProduct
     ? {
@@ -247,7 +264,7 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
   }
 
   function onSubmit(data: ProductFormData) {
-    onSave({ ...data, sizeCurve });
+    onSave({ ...data, sizeCurve }, parseInt(reorderPoint) || 0);
   }
 
   const supplierOptions = [
@@ -343,6 +360,14 @@ function ProductForm({ editingProduct, products, suppliers, onClose, onSave }: P
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Input label="Min Order Qty" id="minOrderQty" type="number" {...register("minOrderQty", { valueAsNumber: true, min: 1 })} />
           <Input label="Lead Time (days)" id="leadTimeDays" type="number" {...register("leadTimeDays", { valueAsNumber: true, min: 0 })} />
+          <Input
+            label="Reorder Point (units)"
+            id="reorderPoint"
+            type="number"
+            value={reorderPoint}
+            onChange={(e) => setReorderPoint(e.target.value)}
+            hint="Alert when stock falls to this level"
+          />
         </div>
 
         {/* Flags */}

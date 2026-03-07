@@ -11,6 +11,7 @@ import { calculateSellThrough } from "@/lib/forecasting";
 import { formatPct } from "@/lib/costs";
 import { nanoid } from "@/lib/nanoid";
 import type { SalesPeriod, SalesPeriodFormData } from "@/types/sales";
+import type { InventorySnapshot } from "@/types/product";
 import { Plus, Trash2, X, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
@@ -64,6 +65,17 @@ export default function SalesPage() {
             dispatch({
               type: "UPSERT_SALES_PERIOD",
               period: { ...data, id: nanoid(), createdAt: new Date().toISOString() },
+            });
+            const existing = state.inventorySnapshots.find((s) => s.productId === data.productId);
+            dispatch({
+              type: "UPSERT_INVENTORY_SNAPSHOT",
+              snapshot: {
+                id: existing?.id ?? nanoid(),
+                productId: data.productId,
+                quantityOnHand: data.closingStock,
+                reorderPoint: existing?.reorderPoint ?? 0,
+                lastUpdated: new Date().toISOString(),
+              } satisfies InventorySnapshot,
             });
             setShowForm(false);
           }}

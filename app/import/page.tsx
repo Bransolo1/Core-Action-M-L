@@ -106,6 +106,26 @@ export default function ImportPage() {
   function confirmSalesImport() {
     if (!salesResult) return;
     dispatch({ type: "UPSERT_SALES_PERIODS", periods: salesResult.periods });
+    const snapshotMap = new Map<string, { qty: number; date: string }>();
+    for (const p of salesResult.periods) {
+      const existing = snapshotMap.get(p.productId);
+      if (!existing || p.periodEnd > existing.date) {
+        snapshotMap.set(p.productId, { qty: p.closingStock, date: p.periodEnd });
+      }
+    }
+    for (const [productId, { qty }] of Array.from(snapshotMap.entries())) {
+      const existing = state.inventorySnapshots.find((s) => s.productId === productId);
+      dispatch({
+        type: "UPSERT_INVENTORY_SNAPSHOT",
+        snapshot: {
+          id: existing?.id ?? nanoid(),
+          productId,
+          quantityOnHand: qty,
+          reorderPoint: existing?.reorderPoint ?? 0,
+          lastUpdated: new Date().toISOString(),
+        },
+      });
+    }
     setImportDone(true);
   }
 
