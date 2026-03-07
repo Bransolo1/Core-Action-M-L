@@ -85,6 +85,10 @@ model Product {
   isActive           Boolean       @default(true)
   isNewToMarket      Boolean       @default(false)
   analogousProductId String?
+  /// Supplier minimum order quantity — 0 or null = no minimum
+  minOrderQty        Int?
+  /// Days from PO placement to warehouse receipt (used for safety stock + reorder point)
+  leadTimeDays       Int?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   salesPeriods       SalesPeriod[]
@@ -116,15 +120,21 @@ model SalesPeriod {
 }
 
 model ForecastRun {
-  id           String   @id @default(cuid())
-  name         String
-  windowStart  String
-  windowEnd    String
-  orderCycleId String?
+  id                 String   @id @default(cuid())
+  name               String
+  windowStart        String
+  windowEnd          String
+  orderCycleId       String?
+  /// "base" | "bull" | "bear"
+  scenario           String   @default("base")
+  /// Velocity multiplier applied (1.0 base, 1.2 bull, 0.8 bear)
+  scenarioMultiplier Float    @default(1.0)
   /// JSON: ProductForecast[]
-  products     Json
-  notes        String?
-  createdAt    DateTime @default(now())
+  products           Json
+  /// JSON: { sku: string; message: string }[]
+  errors             Json     @default("[]")
+  notes              String?
+  createdAt          DateTime @default(now())
 }
 
 model PurchaseOrder {
@@ -207,4 +217,25 @@ model AppSettings {
   /// JSON: CategorySeasonalConfig[]
   seasonalConfigs           Json     @default("[]")
   updatedAt                 DateTime @updatedAt
+}
+
+// ─── Integration Credentials ─────────────────────────────────────────────────
+
+model IntegrationCredentials {
+  id              String    @id @default("singleton")
+  // Shopify Admin API
+  shopifyDomain   String?   /// e.g. "my-store.myshopify.com"
+  shopifyToken    String?   /// Admin API access token
+  shopifySecret   String?   /// Webhook signing secret
+  shopifyEnabled  Boolean   @default(false)
+  shopifyLastSync DateTime?
+  /// JSON: SyncLog
+  shopifySyncLog  Json?
+  // Veeqo REST API
+  veeqoApiKey     String?
+  veeqoEnabled    Boolean   @default(false)
+  veeqoLastSync   DateTime?
+  /// JSON: SyncLog
+  veeqoSyncLog    Json?
+  updatedAt       DateTime  @updatedAt
 }

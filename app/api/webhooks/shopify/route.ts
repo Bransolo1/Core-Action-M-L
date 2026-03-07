@@ -5,7 +5,10 @@
  *   Format: JSON
  *   URL:    https://your-domain.com/api/webhooks/shopify
  *
- * Set SHOPIFY_WEBHOOK_SECRET in your .env from the Shopify webhook page.
+ * The webhook secret is resolved from (in priority order):
+ *   1. SHOPIFY_WEBHOOK_SECRET environment variable
+ *   2. The shopifySecret field in the IntegrationCredentials DB row
+ *      (set via the Integrations page in the app)
  */
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
@@ -33,9 +36,21 @@ function verifyHmac(body: string, signature: string, secret: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+  // Resolve webhook secret: env var → DB credentials → none (skip verification)
+  let secret: string | undefined = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn("[Shopify Webhook] SHOPIFY_WEBHOOK_SECRET not set — skipping verification");
+    try {
+      const creds = await prisma.integrationCredentials.findUnique({
+        where: { id: "singleton" },
+        select: { shopifySecret: true },
+      });
+      secret = creds?.shopifySecret ?? undefined;
+    } catch {
+      // DB unavailable — proceed without verification
+    }
+  }
+  if (!secret) {
+    console.warn("[Shopify Webhook] No webhook secret configured — skipping HMAC verification");
   }
 
   const rawBody = await req.text();

@@ -8,9 +8,11 @@ import {
   TrendingUp,
   ShoppingCart,
   BarChart2,
+  LineChart,
   Settings,
   Truck,
   Upload,
+  Plug,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -22,6 +24,7 @@ const NAV_GROUPS = [
       { href: "/products", label: "Products", icon: Package },
       { href: "/sales", label: "Sales History", icon: BarChart2 },
       { href: "/forecasting", label: "Forecasting", icon: TrendingUp },
+      { href: "/analytics", label: "Analytics", icon: LineChart },
       { href: "/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
     ],
   },
@@ -30,6 +33,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/suppliers", label: "Suppliers", icon: Truck },
       { href: "/import", label: "Import Data", icon: Upload },
+      { href: "/integrations", label: "Integrations", icon: Plug },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
