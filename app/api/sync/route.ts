@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_SETTINGS } from "@/types/settings";
 import type { AppState } from "@/store/app-store";
-import type { BoxDimensions, SizeCurve, InventorySnapshot } from "@/types/product";
+import type { BoxDimensions, SizeCurve } from "@/types/product";
 import type { ProductForecast } from "@/types/forecast";
 import type { POLineItem, OrderCycleType } from "@/types/purchase-order";
 
@@ -134,10 +134,8 @@ export async function POST(req: NextRequest) {
         };
         await tx.product.upsert({
           where: { id: p.id },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          create: { ...data, id: p.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) } as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          update: { ...data, updatedAt: new Date(updatedAt) } as any,
+          create: { ...data, id: p.id, createdAt: new Date(createdAt), updatedAt: new Date(updatedAt) } as never,
+          update: { ...data, updatedAt: new Date(updatedAt) } as never,
         });
       }
       for (const s of state.salesPeriods) {

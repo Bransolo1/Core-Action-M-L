@@ -2,7 +2,6 @@
 
 import { useAppStore } from "@/store/app-store";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPct } from "@/lib/costs";
 import {
   BarChart,

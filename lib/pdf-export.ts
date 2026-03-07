@@ -171,7 +171,6 @@ export async function generatePOPdf(po: PurchaseOrder, cycle?: OrderCycle): Prom
   });
 
   // ── Totals footer ─────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY: number = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
 
   doc.setFillColor(...BRAND_BLACK);
