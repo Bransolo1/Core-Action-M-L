@@ -4,38 +4,47 @@
 
 ### Services overview
 
-This is a **Next.js 14** app with **PostgreSQL** (via Prisma ORM) and **NextAuth.js** authentication.
+This is a **Next.js 14** app with **SQLite** (via Prisma ORM) and **NextAuth.js** authentication. No Docker or external database required.
 
 | Service | How to run |
 |---------|-----------|
-| PostgreSQL 16 | `sudo docker run -d --name coreaction-db -p 5432:5432 -e POSTGRES_DB=coreaction_ml -e POSTGRES_USER=coreaction -e POSTGRES_PASSWORD=changeme postgres:16-alpine` |
 | Next.js dev server | `npm run dev` (port 3000) |
+| Database | SQLite file at `data/coreaction.db` (auto-created by Prisma) |
 
 ### Key commands
 
-See `package.json` scripts and `CLAUDE.md` for full details. Summary:
+See `package.json` scripts and `CLAUDE.md` for full details.
 
 - **Dev server**: `npm run dev`
 - **Lint**: `npm run lint`
 - **Type check**: `npm run type-check`
-- **Unit tests**: `npm run test` (Vitest)
-- **DB push**: `DATABASE_URL=postgresql://coreaction:changeme@localhost:5432/coreaction_ml npx prisma db push`
-- **DB seed**: `DATABASE_URL=postgresql://coreaction:changeme@localhost:5432/coreaction_ml npm run db:seed`
+- **Unit tests**: `npm run test` (Vitest, 73 tests)
+- **DB push**: `npx prisma db push` (reads `DATABASE_URL` from `.env.local`)
+- **DB seed**: `npm run db:seed`
+
+### Environment setup
+
+The `.env.local` file should contain:
+```
+DATABASE_URL=file:./data/coreaction.db
+NEXTAUTH_SECRET=<random-base64>
+NEXTAUTH_URL=http://localhost:3000
+```
+
+Generate a secret: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+
+Default login: `admin@ridecore.pro` / `CoreAction2026!`
 
 ### Important gotchas
 
-1. **`next.config.ts` is incompatible with Next.js 14.2**: The repo ships `next.config.ts` but Next.js 14.2 only supports `.js`/`.mjs`. A `next.config.mjs` must exist alongside it for both `npm run dev` and `npm run build` to work. The `.mjs` file mirrors the `.ts` config but uses `experimental.serverComponentsExternalPackages` (the Next.js 14 name) instead of the top-level `serverExternalPackages` (Next.js 15+).
+1. **SQLite JSON fields are stored as String**: Prisma 5.x doesn't support the `Json` type with SQLite. All structured data (boxDimensions, sizeCurve, forecast products, PO lines, settings arrays) is serialised with `JSON.stringify` on write and `JSON.parse` on read in `/api/sync/route.ts`.
 
-2. **Prisma CLI does not read `.env.local`**: You must export `DATABASE_URL` explicitly when running Prisma commands (e.g. `db:push`, `db:seed`, `prisma generate`).
+2. **Prisma CLI reads `.env` but not `.env.local`**: Next.js loads `.env.local` at runtime, but Prisma CLI only reads `.env`. If running Prisma commands manually, either create a `.env` file or pass `DATABASE_URL` as an environment variable.
 
-3. **Docker compose `db` service has no port mapping**: The `docker-compose.yml` `db` service does not expose port 5432 to the host. For local dev, run PostgreSQL directly with `docker run -p 5432:5432 ...` or add a `ports` mapping.
+3. **Config file**: The project uses `next.config.mjs` (not `.ts`). Next.js 14.2 does not support TypeScript config files.
 
-4. **ESLint config references `@typescript-eslint/no-unused-vars` rule** which is not provided by the installed packages. Both `npm run lint` and `npm run build` fail due to this pre-existing issue. `npm run type-check` passes cleanly.
+4. **Vitest excludes `e2e/`**: The `vitest.config.ts` excludes the `e2e/` directory to prevent Playwright tests from being collected by Vitest.
 
-5. **Vitest picks up Playwright e2e tests**: The `vitest.config.ts` does not exclude the `e2e/` directory, causing Playwright tests to fail when collected by Vitest. The 15 unit tests in `lib/__tests__/` all pass.
+5. **InventorySnapshot is auto-updated**: When a sales period is saved (manually or via CSV import), the product's `InventorySnapshot.quantityOnHand` is set to the `closingStock` value. Reorder points are set via the Product edit form.
 
-6. **Default seed credentials**: `admin@ridecore.pro` / `CoreAction2026!`
-
-7. **`.env.local` setup**: Copy `.env.local.example` to `.env.local`. Required vars: `DATABASE_URL`, `NEXTAUTH_SECRET` (generate with `openssl rand -base64 32`), `NEXTAUTH_URL=http://localhost:3000`. `ANTHROPIC_API_KEY` is optional (only for AI suggestions feature).
-
-8. **Docker daemon in cloud VM**: Requires `fuse-overlayfs` storage driver and `iptables-legacy`. Start with `sudo dockerd &>/tmp/dockerd.log &`.
+6. **State sync**: The app uses a dual persistence model — localStorage (immediate) + POST `/api/sync` (debounced 1.5s). On load, GET `/api/sync` hydrates from the database; if empty, falls back to localStorage.
