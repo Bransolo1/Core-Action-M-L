@@ -82,7 +82,7 @@ export default function PurchaseOrdersPage() {
           forecasts: forecast.products,
           products,
           cycle: effectiveCycle,
-          supplierName,
+          supplierName: supplierName ? (suppliers.find((s) => s.id === supplierName)?.name ?? supplierName) : undefined,
         }),
       });
 
